@@ -28,10 +28,33 @@ type PropInfo struct {
 	Compute func(ctx ComputeContext, v Value) Value
 }
 
-// ComputeContext gives property computers access to the style being
-// computed. It is implemented by the computed package, which depends on this
-// one.
-type ComputeContext interface{}
+// ComputeContext is the style a value is computed for, as seen by the
+// property computers. It is implemented by the computed package, which
+// depends on this one.
+type ComputeContext interface {
+	// Get returns the computed value of a property of the same element.
+	Get(id PropID) Value
+	// Specified returns the specified value of position, float or display,
+	// which the computed values of float and display depend on.
+	Specified(id PropID) Value
+	// ParentValue returns the computed value of a property of the parent
+	// element, or its initial value for the root element.
+	ParentValue(id PropID) Value
+	// IsRootElement reports whether the style is the one of the root
+	// element.
+	IsRootElement() bool
+	// PseudoType is the pseudo-element the style is for, or "".
+	PseudoType() string
+	// ToPixels converts a length to CSS pixels in the context of the named
+	// property, resolving font and viewport relative units.
+	ToPixels(value float64, unit, property string) float64
+	// CharacterRatio returns the size of the ex, ch, cap or ic unit as a
+	// fraction of the font size.
+	CharacterRatio(unit string) float64
+	// Strut returns the used line height and the baseline position of the
+	// first available font.
+	Strut() (lineHeight, baseline float64)
+}
 
 // mmToPx is the size of a millimetre in CSS pixels (CSS Values 3 §5.2).
 const mmToPx = 96 / 25.4
