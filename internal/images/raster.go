@@ -286,7 +286,7 @@ func (r *Raster) Draw(s *stream.Stream, w, h float64, rendering string) {
 	s.DrawXObject(name)
 }
 
-// Embed writes the image XObject, with its soft mask and color profile.
+// Embed writes the image XObject, with its soft mask.
 func (r *Raster) Embed(pdf *writer.PDF, interpolate bool, dpiRatio float64) (writer.Ref, error) {
 	pm := r.pixmap
 	if dpiRatio < 1 {
