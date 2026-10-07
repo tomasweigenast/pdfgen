@@ -112,3 +112,7 @@ func rgb(r, g, b, a float64) props.Color {
 }
 
 func startCapture() *logging.Capture { return logging.StartCapture() }
+
+func inf(sign int) float64 { return math.Inf(sign) }
+
+func str(s string) CounterSymbol { return CounterSymbol{Kind: "string", Value: s} }
