@@ -12,19 +12,38 @@ type Record struct {
 	Message string
 }
 
-// Capture collects the entries written to Logger and Progress until Close
-// is called. It is meant for tests; captures must not overlap.
+// Capture collects the entries written to Logger, at info level and above,
+// until Close is called. Progress is not captured. It is meant for tests;
+// captures must not overlap.
 type Capture struct {
 	mu       sync.Mutex
 	records  []Record
 	restores []func()
 }
 
-// StartCapture redirects Logger and Progress into a new Capture.
+// String formats r as "LEVEL: message".
+func (r Record) String() string {
+	return levelName(r.Level) + ": " + r.Message
+}
+
+func levelName(l slog.Level) string {
+	switch {
+	case l >= slog.LevelError:
+		return "ERROR"
+	case l >= slog.LevelWarn:
+		return "WARNING"
+	case l >= slog.LevelInfo:
+		return "INFO"
+	default:
+		return "DEBUG"
+	}
+}
+
+// StartCapture redirects Logger into a new Capture.
 func StartCapture() *Capture {
 	c := &Capture{}
 	h := &captureHandler{c: c}
-	c.restores = []func(){setHandler(Logger, h), setHandler(Progress, h)}
+	c.restores = []func(){setHandler(Logger, h)}
 	return c
 }
 
@@ -41,6 +60,18 @@ func (c *Capture) Records() []Record {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]Record(nil), c.records...)
+}
+
+// Lines returns the captured entries as "LEVEL: message", with the level
+// spelled DEBUG, INFO, WARNING or ERROR.
+func (c *Capture) Lines() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	lines := make([]string, len(c.records))
+	for i, r := range c.records {
+		lines[i] = r.String()
+	}
+	return lines
 }
 
 // Messages returns the messages of the captured entries, in order.
@@ -69,7 +100,7 @@ func (c *Capture) Warnings() []string {
 
 type captureHandler struct{ c *Capture }
 
-func (h *captureHandler) Enabled(context.Context, slog.Level) bool { return true }
+func (h *captureHandler) Enabled(_ context.Context, l slog.Level) bool { return l >= slog.LevelInfo }
 
 func (h *captureHandler) Handle(_ context.Context, r slog.Record) error {
 	h.c.mu.Lock()
