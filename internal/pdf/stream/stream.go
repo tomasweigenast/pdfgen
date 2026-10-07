@@ -9,7 +9,9 @@ import (
 	"github.com/tomasweigenast/pdfgen/internal/css/syntax"
 	"github.com/tomasweigenast/pdfgen/internal/logging"
 	"github.com/tomasweigenast/pdfgen/internal/matrix"
+	"github.com/tomasweigenast/pdfgen/internal/pdf/fonts"
 	"github.com/tomasweigenast/pdfgen/internal/pdf/writer"
+	textfonts "github.com/tomasweigenast/pdfgen/internal/text/fonts"
 )
 
 // Options configure a page stream.
@@ -153,6 +155,24 @@ func (s *Stream) SetFontSize(font string, size float64) {
 	}
 	s.font = &fontState{font, size}
 	s.Content.SetFontSize(font, size)
+}
+
+// AddFont returns the document font that embeds face, registering it on first
+// use. The font is selected with [Stream.SetFont].
+func (s *Stream) AddFont(face *textfonts.Face) *fonts.Font {
+	return s.res.registry().Add(face)
+}
+
+// SetFont selects font at size, in CSS pixels, unless already selected. The
+// resource is named after the font hash.
+func (s *Stream) SetFont(font *fonts.Font, size float64) { s.SetFontSize(font.Hash, size) }
+
+// ShowGlyphs shows glyphs by CID with their adjustments (TJ). Nothing is
+// emitted for an empty list.
+func (s *Stream) ShowGlyphs(glyphs []fonts.TJElement) {
+	if len(glyphs) > 0 {
+		s.ShowText(fonts.TJ(glyphs))
+	}
 }
 
 // SetColor sets the fill or stroke color and the matching alpha.

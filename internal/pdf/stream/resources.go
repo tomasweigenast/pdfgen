@@ -2,6 +2,7 @@ package stream
 
 import (
 	"github.com/tomasweigenast/pdfgen/internal/css/syntax"
+	"github.com/tomasweigenast/pdfgen/internal/pdf/fonts"
 	"github.com/tomasweigenast/pdfgen/internal/pdf/writer"
 )
 
@@ -50,6 +51,10 @@ type Resources struct {
 	// Font is the object stored under /Font, normally a reference to the
 	// dictionary of the fonts of the document. Nil omits it.
 	Font writer.Object
+	// Fonts collects the fonts the streams draw with. Set it before drawing
+	// to choose how fonts are embedded; otherwise the first font used
+	// creates a registry that subsets. It is shared with child resources.
+	Fonts *fonts.Registry
 }
 
 // NewResources returns empty resources that refer to colorSpace.
@@ -60,7 +65,14 @@ func NewResources(colorSpace writer.Object) *Resources {
 // child returns the resources of a form XObject or pattern: empty
 // categories, with the color spaces of r.
 func (r *Resources) child() *Resources {
-	return &Resources{ColorSpace: r.ColorSpace}
+	return &Resources{ColorSpace: r.ColorSpace, Fonts: r.registry()}
+}
+
+func (r *Resources) registry() *fonts.Registry {
+	if r.Fonts == nil {
+		r.Fonts = fonts.NewRegistry(false)
+	}
+	return r.Fonts
 }
 
 // Embed adds to pdf every stream and dictionary the resources refer to, then
