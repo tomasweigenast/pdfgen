@@ -44,6 +44,7 @@ type extGState struct {
 // numbered per category in registration order.
 type Resources struct {
 	extGState, xObject, pattern, shading namedMap
+	images                               *imageRegistry
 
 	// ColorSpace is the object stored under /ColorSpace, normally a
 	// reference to a dictionary of the named color spaces. Nil omits it.
@@ -65,7 +66,7 @@ func NewResources(colorSpace writer.Object) *Resources {
 // child returns the resources of a form XObject or pattern: empty
 // categories, with the color spaces of r.
 func (r *Resources) child() *Resources {
-	return &Resources{ColorSpace: r.ColorSpace, Fonts: r.registry()}
+	return &Resources{ColorSpace: r.ColorSpace, Fonts: r.registry(), images: r.imageRegistry()}
 }
 
 func (r *Resources) registry() *fonts.Registry {
@@ -79,15 +80,22 @@ func (r *Resources) registry() *fonts.Registry {
 // stores the resource dictionary at ref, which the caller reserved. Call it
 // once, after all pages sharing r have been drawn.
 func (r *Resources) Embed(pdf *writer.PDF, ref writer.Ref) error {
-	e := &embedder{pdf: pdf, refs: make(map[*Stream]writer.Ref)}
-	return pdf.Set(ref, e.resources(r, r.Font))
+	e := &embedder{pdf: pdf, refs: make(map[*Stream]writer.Ref), images: make(map[string]writer.Ref), root: r}
+	dict := e.resources(r, r.Font)
+	if e.err != nil {
+		return e.err
+	}
+	return pdf.Set(ref, dict)
 }
 
 // embedder numbers the objects of a resource tree in the order the
 // categories are visited: XObjects, patterns, shadings.
 type embedder struct {
-	pdf  *writer.PDF
-	refs map[*Stream]writer.Ref
+	pdf    *writer.PDF
+	refs   map[*Stream]writer.Ref
+	images map[string]writer.Ref
+	root   *Resources
+	err    error
 }
 
 func (e *embedder) resources(r *Resources, fonts writer.Object) *writer.Dict {
@@ -122,6 +130,8 @@ func (e *embedder) resources(r *Resources, fonts writer.Object) *writer.Dict {
 // dictionaries become indirect objects, anything else is kept as is.
 func (e *embedder) object(v any, fonts writer.Object) writer.Object {
 	switch v := v.(type) {
+	case pendingImage:
+		return e.image(v, e.root)
 	case *Stream:
 		return e.stream(v, fonts)
 	case *writer.Dict:
