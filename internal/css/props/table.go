@@ -37,9 +37,9 @@ type ComputeContext interface{}
 const mmToPx = 96 / 25.4
 
 var (
-	black        = Color{syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 1)}
-	transparent  = Color{syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 0)}
-	currentColor = Color{syntax.Color{Space: syntax.CurrentColor, Alpha: 1}}
+	black        = Color{Color: syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 1)}
+	transparent  = Color{Color: syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 0)}
+	currentColor = Color{Color: syntax.Color{Space: syntax.CurrentColor, Alpha: 1}}
 
 	// unbounded is the parsed value of none for the max-* properties.
 	unbounded = Px(math.Inf(1))

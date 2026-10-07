@@ -241,9 +241,9 @@ func TestInitialValues(t *testing.T) {
 		id   PropID
 		want Value
 	}{
-		{PropColor, Color{syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 1)}},
-		{PropBackgroundColor, Color{syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 0)}},
-		{PropBorderTopColor, Color{syntax.Color{Space: syntax.CurrentColor, Alpha: 1}}},
+		{PropColor, Color{Color: syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 1)}},
+		{PropBackgroundColor, Color{Color: syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 0)}},
+		{PropBorderTopColor, Color{Color: syntax.Color{Space: syntax.CurrentColor, Alpha: 1}}},
 		{PropDisplay, Display{"inline", "flow"}},
 		{PropFontSize, Pixels(16)},
 		{PropFontWeight, Integer(400)},

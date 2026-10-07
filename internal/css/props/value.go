@@ -79,7 +79,14 @@ func (l Length) IsInfinite() bool {
 
 // Color is a color value, including the currentcolor keyword, which is a
 // syntax.Color whose space is syntax.CurrentColor.
-type Color struct{ syntax.Color }
+//
+// A specified color that depends on color-scheme, such as light-dark(), also
+// keeps its Token so that it can be parsed again for the scheme of the
+// element; Color then holds the value for the light scheme.
+type Color struct {
+	syntax.Color
+	Token syntax.Node
+}
 
 // IsCurrentColor reports whether c is the currentcolor keyword.
 func (c Color) IsCurrentColor() bool { return c.Space == syntax.CurrentColor }
@@ -237,15 +244,19 @@ type ContentItem struct {
 	// "counters()", "leader()", "element()", "string()",
 	// "target-counter()", "target-counters()" or "target-text()".
 	Type string
-	// Args are the string arguments of the item, in source order: the
-	// text of a string, the kind and address of a url, the keyword of a
-	// quote, and so on.
+	// Args are the plain arguments of the item, in source order: the text of
+	// a string, the kind and address of a url, the keyword of a quote, the
+	// name, type and fallback of attr(), and so on. A counter style given as
+	// a keyword by target-counter() is the last one.
 	Args []string
 	// Style is the counter style of counter() and counters().
 	Style *ListStyleType
-	// LinkIsURL is set when the first argument of a target-*() function is
-	// a url() instead of a string.
-	LinkIsURL bool
+	// Link is the first argument of a target-*() function: a string, a url
+	// or an attr() item.
+	Link *ContentItem
+	// Separator is the string argument of target-counters(), which may also
+	// be an attr(), counter() or content() item.
+	Separator *ContentItem
 }
 
 // Content is the value of content: a keyword (normal, none, or after
@@ -406,6 +417,22 @@ type GridLine struct {
 	Ident string
 }
 
+// Tokens is the value of a custom property: the component values as written,
+// without surrounding whitespace removal.
+type Tokens []syntax.Node
+
+// Pending is the value of a declaration that contains var(). It can only be
+// validated once the custom properties of the element are known, so the tokens
+// are kept as written together with the name of the property or shorthand
+// they were declared for (CSS Variables 1 §3).
+type Pending struct {
+	Name   string
+	Tokens []syntax.Node
+	// Reported is set once a warning about the invalid value was logged,
+	// because every longhand of a shorthand resolves the same tokens.
+	Reported bool
+}
+
 func (Keyword) isValue()          {}
 func (String) isValue()           {}
 func (Strings) isValue()          {}
@@ -452,3 +479,5 @@ func (TrackList) isValue()        {}
 func (GridTemplate) isValue()     {}
 func (GridAreas) isValue()        {}
 func (GridLine) isValue()         {}
+func (Tokens) isValue()           {}
+func (*Pending) isValue()         {}
