@@ -13,6 +13,11 @@ License. The files concerned are:
     text content adapted (the test fonts, test_ua.css and the sample
     documents)
 
+This product also includes the css-parsing-tests suite by Simon Sapin
+(https://github.com/SimonSapin/css-parsing-tests), dedicated to the public
+domain under CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
+The files concerned are the JSON files under internal/css/syntax/testdata/.
+
 The original license follows.
 
 BSD 3-Clause License
