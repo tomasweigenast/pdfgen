@@ -236,3 +236,17 @@ func checksum(b []byte) uint32 {
 	}
 	return sum
 }
+
+// GlyphCount returns the number of glyphs of the face at index, from its maxp
+// table. It works for any font, including those Parse does not support.
+func GlyphCount(data []byte, index int) (int, error) {
+	tables, _, err := readTables(data, index)
+	if err != nil {
+		return 0, err
+	}
+	maxp := tables["maxp"]
+	if len(maxp) < 6 {
+		return 0, errors.New("missing maxp table")
+	}
+	return int(binary.BigEndian.Uint16(maxp[4:])), nil
+}
