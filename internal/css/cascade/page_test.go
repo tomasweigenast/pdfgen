@@ -81,4 +81,3 @@ func TestPageSelectorMatches(t *testing.T) {
 		}
 	}
 }
-
