@@ -174,6 +174,14 @@ func TestSubsetAllowsRepeatedNotdef(t *testing.T) {
 	if n := numGlyphs(t, out); n != 4 {
 		t.Errorf("glyphs = %d, want 4", n)
 	}
+	tables, _, _ := readTables(out, 0)
+	l, err := parseCFFLayout(tables["CFF "])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(l.items[0], l.items[2]) || !bytes.Equal(l.items[0], l.items[3]) || len(l.items[0]) <= 1 {
+		t.Error("every copy of .notdef should keep the outline")
+	}
 }
 
 func TestSubsetRejectsInvalidGlyphLists(t *testing.T) {
@@ -267,5 +275,56 @@ func TestFullExtractsFaceOfCollection(t *testing.T) {
 	}
 	if _, err := Parse(ttc, 1); err == nil {
 		t.Error("face 1 of a one-face collection should fail")
+	}
+}
+
+func TestSubsetTrueTypeDropsGlyphInstructions(t *testing.T) {
+	f, err := Parse(systemTrueType(t), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	instructions := func(opts Options) int {
+		out, err := f.Subset([]uint16{0, 4, 5}, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tables, _, _ := readTables(out, 0)
+		glyf, loca := tables["glyf"], tables["loca"]
+		total := 0
+		for g := 1; g <= 2; g++ {
+			var start, end uint32
+			if binary.BigEndian.Uint16(tables["head"][50:]) == 0 {
+				start = uint32(binary.BigEndian.Uint16(loca[2*g:])) * 2
+				end = uint32(binary.BigEndian.Uint16(loca[2*g+2:])) * 2
+			} else {
+				start, end = binary.BigEndian.Uint32(loca[4*g:]), binary.BigEndian.Uint32(loca[4*g+4:])
+			}
+			data := glyf[start:end]
+			if len(data) < 12 || int16(binary.BigEndian.Uint16(data)) < 0 {
+				continue
+			}
+			pos := 10 + 2*int(int16(binary.BigEndian.Uint16(data)))
+			total += int(binary.BigEndian.Uint16(data[pos:]))
+		}
+		return total
+	}
+	if n := instructions(Options{}); n != 0 {
+		t.Errorf("%d instruction bytes left without hinting", n)
+	}
+}
+
+func TestStripInstructionsOfCompositeGlyph(t *testing.T) {
+	g := []byte{
+		0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, // header, 2 components
+		0x01, 0x23, 0, 7, 0, 1, 0, 2, // words, more, instructions flag
+		0x01, 0x03, 0, 8, 0, 3, 0, 4, // last, with instructions
+		0, 2, 0xaa, 0xbb, // instruction length and bytes
+	}
+	got := stripInstructions(g)
+	if len(got) != 26 {
+		t.Fatalf("length = %d, want 26", len(got))
+	}
+	if flags := binary.BigEndian.Uint16(got[18:]); flags&0x100 != 0 {
+		t.Errorf("last component flags = %#x, instructions bit still set", flags)
 	}
 }

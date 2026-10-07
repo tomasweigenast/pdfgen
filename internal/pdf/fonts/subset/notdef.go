@@ -3,45 +3,37 @@ package subset
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 )
 
-// restoreNotdef puts the outline of the source glyph 0 back in the subset
-// tables, which the subsetter leaves empty. A .notdef that cannot be moved
-// as is (a TrueType composite, or a charstring that calls subroutines or
-// declares hints) stays empty.
-func (f *Font) restoreNotdef(tables map[string][]byte) error {
-	if f.sfnt.IsCFF {
-		notdef, ok := cffNotdef(f.sfnt.Tables["CFF "])
-		if !ok {
-			return nil
+// restoreNotdef puts the outline of the source glyph 0 back in every glyph of
+// the subset that stands for it, which the subsetter leaves empty. A .notdef
+// that cannot be moved as is (a TrueType composite, or a charstring that
+// calls subroutines or declares hints) stays empty.
+func (f *Font) restoreNotdef(tables map[string][]byte, glyphs []uint16) error {
+	var indices []int
+	for i, g := range glyphs {
+		if g == 0 {
+			indices = append(indices, i)
 		}
-		patched, err := replaceCFFNotdef(tables["CFF "], notdef)
-		if err != nil {
-			return fmt.Errorf("restoring .notdef: %w", err)
-		}
-		tables["CFF "] = patched
+	}
+	if !f.sfnt.IsCFF {
+		return nil // handled with the rest of the glyphs by rewriteGlyf
+	}
+	notdef, ok := cffNotdef(f.sfnt.Tables["CFF "])
+	if !ok {
 		return nil
 	}
-
-	glyf := f.sfnt.Glyf
-	if glyf == nil || glyf.IsComposite(0) {
-		return nil
+	patched, err := replaceCFFGlyphs(tables["CFF "], indices, notdef)
+	if err != nil {
+		return err
 	}
-	outline := glyf.Get(0)
-	if len(outline) == 0 {
-		return nil
-	}
-	if err := prependGlyph(tables, outline); err != nil {
-		return fmt.Errorf("restoring .notdef: %w", err)
-	}
+	tables["CFF "] = patched
 	return nil
 }
 
-// prependGlyph stores outline as glyph 0 of the glyf table. Glyph 0 is empty
-// in the subset, so it sits at offset 0 and every other glyph moves by the
-// length of the outline.
-func prependGlyph(tables map[string][]byte, outline []byte) error {
+// rewriteGlyf rebuilds the glyf and loca tables of a subset with each glyph
+// passed through fn, which gets the index of the glyph in the subset.
+func rewriteGlyf(tables map[string][]byte, fn func(i int, glyph []byte) []byte) error {
 	head, loca, glyf := tables["head"], tables["loca"], tables["glyf"]
 	if len(head) < 54 {
 		return errors.New("bad head table")
@@ -58,24 +50,28 @@ func prependGlyph(tables map[string][]byte, outline []byte) error {
 			offsets = append(offsets, uint32(binary.BigEndian.Uint16(loca[i:]))*2)
 		}
 	}
-	if len(offsets) < 2 || offsets[1] != 0 {
-		return errors.New("glyph 0 is not empty")
+	if len(offsets) == 0 {
+		return errors.New("empty loca table")
 	}
 
-	padded := len(outline) + len(outline)%2
-	shift := uint32(padded)
-	for i := 1; i < len(offsets); i++ {
-		offsets[i] += shift
+	newGlyf := make([]byte, 0, len(glyf))
+	newOffsets := make([]uint32, 0, len(offsets))
+	newOffsets = append(newOffsets, 0)
+	for i := 0; i+1 < len(offsets); i++ {
+		start, end := offsets[i], offsets[i+1]
+		if start > end || int(end) > len(glyf) {
+			return errors.New("bad loca table")
+		}
+		newGlyf = append(newGlyf, fn(i, glyf[start:end])...)
+		if len(newGlyf)%2 == 1 {
+			newGlyf = append(newGlyf, 0)
+		}
+		newOffsets = append(newOffsets, uint32(len(newGlyf)))
 	}
 
-	newGlyf := make([]byte, 0, padded+len(glyf))
-	newGlyf = append(newGlyf, outline...)
-	newGlyf = append(newGlyf, make([]byte, padded-len(outline))...)
-	newGlyf = append(newGlyf, glyf...)
-
-	long = offsets[len(offsets)-1] > 2*0xFFFF
-	newLoca := make([]byte, 0, 4*len(offsets))
-	for _, o := range offsets {
+	long = newOffsets[len(newOffsets)-1] > 2*0xFFFF
+	newLoca := make([]byte, 0, 4*len(newOffsets))
+	for _, o := range newOffsets {
 		if long {
 			newLoca = binary.BigEndian.AppendUint32(newLoca, o)
 		} else {
@@ -91,4 +87,66 @@ func prependGlyph(tables map[string][]byte, outline []byte) error {
 
 	tables["glyf"], tables["loca"], tables["head"] = newGlyf, newLoca, newHead
 	return nil
+}
+
+// stripInstructions removes the hinting program of a glyph. Subsets drop the
+// shared programs (fpgm, prep), which glyph programs may depend on.
+func stripInstructions(g []byte) []byte {
+	if len(g) < 10 {
+		return g
+	}
+	contours := int16(binary.BigEndian.Uint16(g))
+	if contours >= 0 {
+		pos := 10 + 2*int(contours)
+		if pos+2 > len(g) {
+			return g
+		}
+		length := int(binary.BigEndian.Uint16(g[pos:]))
+		if pos+2+length > len(g) {
+			return g
+		}
+		out := append([]byte(nil), g[:pos]...)
+		out = append(out, 0, 0)
+		return append(out, g[pos+2+length:]...)
+	}
+
+	const (
+		arg1And2AreWords   = 0x0001
+		weHaveAScale       = 0x0008
+		moreComponents     = 0x0020
+		weHaveAnXAndYScale = 0x0040
+		weHaveATwoByTwo    = 0x0080
+		weHaveInstructions = 0x0100
+	)
+	out := append([]byte(nil), g...)
+	off := 10
+	for {
+		if off+4 > len(out) {
+			return g
+		}
+		flags := binary.BigEndian.Uint16(out[off:])
+		size := 4
+		if flags&arg1And2AreWords != 0 {
+			size += 4
+		} else {
+			size += 2
+		}
+		switch {
+		case flags&weHaveAScale != 0:
+			size += 2
+		case flags&weHaveAnXAndYScale != 0:
+			size += 4
+		case flags&weHaveATwoByTwo != 0:
+			size += 8
+		}
+		binary.BigEndian.PutUint16(out[off:], flags&^weHaveInstructions)
+		off += size
+		if flags&moreComponents == 0 {
+			break
+		}
+	}
+	if off > len(out) {
+		return g
+	}
+	return out[:off]
 }

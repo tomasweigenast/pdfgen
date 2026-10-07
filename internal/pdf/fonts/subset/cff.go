@@ -244,10 +244,10 @@ func cffNotdef(table []byte) ([]byte, bool) {
 	return cs, true
 }
 
-// replaceCFFNotdef returns table with the first charstring replaced. The
+// replaceCFFGlyphs returns table with the charstrings at indices replaced. The
 // Top DICT offsets are rewritten with fixed-width operands so that its size
 // does not depend on them.
-func replaceCFFNotdef(table, notdef []byte) ([]byte, error) {
+func replaceCFFGlyphs(table []byte, indices []int, charString []byte) ([]byte, error) {
 	l, err := parseCFFLayout(table)
 	if err != nil {
 		return nil, err
@@ -259,7 +259,13 @@ func replaceCFFNotdef(table, notdef []byte) ([]byte, error) {
 		return nil, errors.New("unexpected Private DICT position")
 	}
 
-	items := append([][]byte{notdef}, l.items[1:]...)
+	items := append([][]byte(nil), l.items...)
+	for _, i := range indices {
+		if i >= len(items) {
+			return nil, errors.New("glyph outside the CharStrings INDEX")
+		}
+		items[i] = charString
+	}
 	charStrings := writeCFFIndex(items)
 	delta := len(charStrings) - (l.csEnd - l.charStrings)
 

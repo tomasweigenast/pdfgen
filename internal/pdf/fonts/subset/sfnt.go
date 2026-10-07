@@ -125,8 +125,13 @@ func (f *Font) Subset(glyphs []uint16, opts Options) ([]byte, error) {
 
 	tables := sub.Tables
 	if opts.KeepNotdef {
-		if err := f.restoreNotdef(tables); err != nil {
-			return nil, err
+		if err := f.restoreNotdef(tables, glyphs); err != nil {
+			return nil, fmt.Errorf("restoring .notdef: %w", err)
+		}
+	}
+	if sub.IsTrueType {
+		if err := f.rewriteOutlines(tables, glyphs, opts); err != nil {
+			return nil, fmt.Errorf("rewriting outlines: %w", err)
 		}
 	}
 	version := uint32(0x00010000)
@@ -249,4 +254,25 @@ func GlyphCount(data []byte, index int) (int, error) {
 		return 0, errors.New("missing maxp table")
 	}
 	return int(binary.BigEndian.Uint16(maxp[4:])), nil
+}
+
+// rewriteOutlines applies the TrueType-only options to the glyphs of a
+// subset: it restores the outline of .notdef and drops hinting programs.
+func (f *Font) rewriteOutlines(tables map[string][]byte, glyphs []uint16, opts Options) error {
+	if !opts.KeepNotdef && opts.Hinting {
+		return nil
+	}
+	var notdef []byte
+	if opts.KeepNotdef && f.sfnt.Glyf != nil && !f.sfnt.Glyf.IsComposite(0) {
+		notdef = f.sfnt.Glyf.Get(0)
+	}
+	return rewriteGlyf(tables, func(i int, g []byte) []byte {
+		if i < len(glyphs) && glyphs[i] == 0 && notdef != nil {
+			g = notdef
+		}
+		if !opts.Hinting {
+			g = stripInstructions(g)
+		}
+		return g
+	})
 }
