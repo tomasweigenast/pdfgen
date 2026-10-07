@@ -184,3 +184,13 @@ func TestFinalSigmaLowercasing(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestAmericanEnglish(t *testing.T) {
+	h := mustNew(t, "en_US", 2, 2)
+	if got := h.Inserted("hyphenation", "-"); got != "hy-phen-ation" {
+		t.Errorf("Inserted(hyphenation) = %q", got)
+	}
+	if got := LanguageFallback("en-US"); got != "en_US" {
+		t.Errorf("LanguageFallback(en-US) = %q, want en_US", got)
+	}
+}
