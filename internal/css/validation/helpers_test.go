@@ -68,7 +68,7 @@ func assertValue(t *testing.T, css string, want props.Value) {
 }
 
 // expandToMap preprocesses the declarations in css and returns their values
-// by longhand name.
+// by longhand name, without the longhands set to initial.
 func expandToMap(t *testing.T, css string) map[string]props.Value {
 	t.Helper()
 	capture := logging.StartCapture()
@@ -79,7 +79,9 @@ func expandToMap(t *testing.T, css string) map[string]props.Value {
 	}
 	m := map[string]props.Value{}
 	for _, d := range result {
-		m[d.Name] = d.Value
+		if d.Value != props.Keyword("initial") {
+			m[d.Name] = d.Value
+		}
 	}
 	return m
 }
@@ -108,3 +110,5 @@ func approx(a, b float64) bool { return math.Abs(a-b) < 1e-9 }
 func rgb(r, g, b, a float64) props.Color {
 	return props.Color{Color: syntax.NewColor(syntax.SRGB, []float64{r, g, b}, a)}
 }
+
+func startCapture() *logging.Capture { return logging.StartCapture() }

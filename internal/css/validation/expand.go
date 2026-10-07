@@ -50,16 +50,6 @@ func hasVar(tokens []syntax.Node) bool {
 	return false
 }
 
-// pendingPairs gives every longhand the same pending value.
-func pendingPairs(tokens []syntax.Node, name string, expanded []string) []pair {
-	pending := &props.Pending{Name: name, Tokens: tokens}
-	pairs := make([]pair, len(expanded))
-	for i, n := range expanded {
-		pairs[i] = pair{n, pending}
-	}
-	return pairs
-}
-
 func fullName(shorthand, expanded string) string {
 	if strings.HasPrefix(expanded, "-") {
 		return shorthand + expanded

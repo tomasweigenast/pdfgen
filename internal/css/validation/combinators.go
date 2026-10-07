@@ -1,6 +1,8 @@
 package validation
 
 import (
+	"strconv"
+
 	"github.com/tomasweigenast/pdfgen/internal/css/props"
 	"github.com/tomasweigenast/pdfgen/internal/css/syntax"
 	tk "github.com/tomasweigenast/pdfgen/internal/css/tokens"
@@ -77,18 +79,17 @@ func keywordItem(allowed ...string) item[props.Keyword] {
 	}
 }
 
-// valid reports whether the validator accepts the tokens, passing errors on.
-func valid(f validator, baseURL string, tokens ...syntax.Node) (bool, error) {
-	v, err := f(tokens, baseURL)
+// accepts reports whether the validator of the named longhand accepts the
+// tokens, passing on the errors it raises.
+func accepts(name, baseURL string, tokens ...syntax.Node) (bool, error) {
+	id, ok := props.ID(name)
+	if !ok || props.Table[id].Validate == nil {
+		return false, nil
+	}
+	v, err := props.Table[id].Validate(tokens, baseURL)
 	return v != nil && err == nil, err
 }
 
-// firstError returns the first non-nil error.
-func firstError(errs ...error) error {
-	for _, err := range errs {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+func itoa(n int) string { return strconv.Itoa(n) }
+
+func formatFloat(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }

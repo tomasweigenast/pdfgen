@@ -250,14 +250,14 @@ func parseBorderImageSlice(tokens []syntax.Node) (props.ImageSlice, bool) {
 		return props.ImageSlice{}, false
 	}
 	slice := props.ImageSlice{Fill: fill}
-	edges := expandSides(values)
+	edges := repeatSides(values)
 	copy(slice.Edges[:], edges)
 	return slice, true
 }
 
-// expandSides repeats one to four values over the top, right, bottom and left
+// repeatSides repeats one to four values over the top, right, bottom and left
 // sides (CSS Box 4 §7.1).
-func expandSides[T any](values []T) []T {
+func repeatSides[T any](values []T) []T {
 	switch len(values) {
 	case 1:
 		return []T{values[0], values[0], values[0], values[0]}
@@ -297,7 +297,7 @@ func parseLengthQuad(tokens []syntax.Node, widthSyntax bool) props.Value {
 		return nil
 	}
 	var quad props.LengthQuad
-	copy(quad[:], expandSides(values))
+	copy(quad[:], repeatSides(values))
 	return quad
 }
 
