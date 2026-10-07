@@ -1,0 +1,170 @@
+Licenses of the bundled hyphenation dictionaries
+================================================
+
+The hyph_*.dic files are hyphenation pattern dictionaries distributed with
+LibreOffice (https://git.libreoffice.org/dictionaries). They are copied
+verbatim, including their header comments, and each one remains under its own
+license. Where a dictionary offers a choice of licenses, the permissive or
+weak-copyleft option is the one relied on here. The README_hyph_*.txt files
+next to the dictionaries are the authors' own notices.
+
+Dictionary        License
+----------------  ------------------------------------------------------------
+af_ZA             LGPL 2.1 or later
+as_IN             LGPL 3 or later
+be_BY             CC BY-SA 4.0 or LGPL 3
+ca                LGPL 3 or later, or GPL 3 or later
+da_DK             LGPL
+de_AT, de_CH,     LGPL 2 or later (adaptation); patterns under the LaTeX
+de_DE             Project Public License
+el_GR             LGPL
+en_GB, en_US      BSD-style, see the dictionary headers and README
+es                MIT, or GPL 3+/LGPL 3+/MPL 1.1+
+et_EE             LGPL; original patterns under the LaTeX Project Public License
+eu                Permissive notice in the dictionary README
+fr                LGPL 2.1 or later (patterns also available under MIT)
+hr_HR             LGPL
+hu_HU             MPL 1.1 / GPL 2.0 / LGPL 2.1
+is                CC BY 4.0
+it_IT             LGPL
+kn_IN             LGPL 3 or later
+lt                LaTeX Project Public License
+lv_LV             LGPL 2.1
+mn_MN             LaTeX Project Public License 1.3 or later
+nl_NL             Revised BSD License and/or CC BY 3.0 (text below)
+or_IN             LGPL 3 or later
+pa_IN             LGPL 3 or later
+pl_PL             LGPL; original patterns under the LaTeX Project Public License
+pt_BR             LGPL 3 / MPL
+ru_RU             BSD-style (text below)
+sl_SI             LGPL / GPL, original patterns under the LaTeX Project Public License
+sq_AL             MPL 2.0
+sr, sr_Latn       LGPL 2.1 or later
+sv                MPL / LGPL 3 or later
+te_IN             GPL 3+ or LGPL 3+
+th_TH             LaTeX Project Public License 1.3 or later
+zu_ZA             LGPL 2.1
+
+Dictionaries distributed under the GPL alone, or without a stated license, are
+not included.
+
+
+nl_NL (OpenTaal)
+----------------
+
+# English license stipulations
+
+You are kindly requested to read this file called `LICENSE.txt` and to keep a
+copy of it with every copy you make of this project or files of this project.
+
+1. Title: Dutch dictionary for spelling checker
+2. Creator: OpenTaal https://opentaal.org
+3. Rights: Revised BSD License and/or CC BY 3.0
+4. Date and version: see the file datetimeversion.txt
+
+For questions regarding licenses or source attribution, please contact OpenTaal.
+
+5. Source: https://github.com/OpenTaal/opentaal-hunspell
+6. License choice: To enable the broadest (re)use, these language files are
+   freely available under the liberal licenses at the discretion of the user. We
+   strongly recommend to read the applicable license before usage. Choose one or
+   both licenses which apply best for you.
+   A) Revised BSD License (3-clause license), as is defined at
+   https://opensource.org/licenses/BSD-3-Clause (see also below)
+   B) Creative Commons, Attribution 3.0 Unported (CC BY 3.0), as is defined at
+   https://creativecommons.org/licenses/by/3.0/legalcode.txt (see also below)
+7. Creator history:
+   © 2020 OpenTaal (Simon Brouwer, Sander van Geloven)
+   © 2006 - 2011 OpenTaal (Ruud Baars, Simon Brouwer)
+   © 2001 - 2005 Simon Brouwer and others
+   © 1996 Nederlandstalige TeX Gebruikersgroep
+8. Support: Stichting OpenTaal is a volunteer organisation which is designated
+   by the Dutch Tax Administration as an Institution for General Benefit
+   (algemeen nut beogende instelling or ANBI), https://belastingdienst.nl/anbi .
+   Hence, your donations via https://opentaal.org/vrienden-van-opentaal can be
+   tax deductible.
+9. Participate: Everyone is welcome to participate. By contributing to the
+   project you agree that your contribution is available under free or/open
+   source licenses. If you wish, your name will be mentioned on the website.
+10.Rights of third parties: OpenTaal respects the rights of third parties and
+   aims to keep its data freely available. Therefore you may not use protected
+   sources of third parties, i.e. dictionaries, without their permission when
+   you contribute to the project. It is permitted to consult the materials of
+   the Dutch Language Union, i.e. their spelling instruction and word list. In
+   case you believe OpenTaal is violating your rights, we ask you to send us a
+   written notice as soon as possible.
+
+
+# Revised BSD License (3-clause license)
+
+Copyright (c) 2020, OpenTaal
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+ru_RU
+-----
+
+* Copyright (c) 1997-2008, Alexander I. Lebedev
+
+Modifications:
+------------------------------------------------------------------
+2012-08-24: Laszlo Nemeth (nemeth at numbertext org)
+* ru_RU.aff: add TRY line for better suggestions
+  (fix fdo#35001, reported by sasha.libreoffice at gmail)
+
+Copyright:
+------------------------------------------------------------------
+* Copyright (c) 1997-2008, Alexander I. Lebedev
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+* Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright
+  notice, this list of conditions and the following disclaimer in the
+  documentation and/or other materials provided with the distribution.
+* Modified versions must be clearly marked as such.
+* The name of Alexander I. Lebedev may not be used to endorse or promote
+  products derived from this software without specific prior written
+  permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
