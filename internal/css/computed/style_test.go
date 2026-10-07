@@ -14,7 +14,7 @@ func TestUnsetPropertiesFallBackToInitialValues(t *testing.T) {
 	if got := s.Width(); !got.IsAuto() {
 		t.Errorf("Width() = %#v, want auto", got)
 	}
-	if got := s.Display(); len(got) != 2 || got[0] != "inline" || got[1] != "flow" {
+	if got := New(s).Display(); len(got) != 2 || got[0] != "inline" || got[1] != "flow" {
 		t.Errorf("Display() = %v, want [inline flow]", got)
 	}
 }
