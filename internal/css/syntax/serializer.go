@@ -59,7 +59,9 @@ func SerializeIdentifier(s string) string {
 		case c == '\f':
 			b.WriteString(`\C `)
 		case '0' <= c && c <= '9':
-			b.WriteString(`\` + upperHex(int(c)) + " ")
+			b.WriteString(`\`)
+			b.WriteString(upperHex(int(c)))
+			b.WriteString(" ")
 		default:
 			b.WriteByte('\\')
 			b.WriteRune(c)
