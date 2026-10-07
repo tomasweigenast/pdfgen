@@ -3,72 +3,7 @@ package images
 import (
 	"bytes"
 	"compress/zlib"
-	"encoding/binary"
-	"io"
 )
-
-var pngSignature = []byte("\x89PNG\r\n\x1a\n")
-
-// pngProfile returns the embedded ICC profile of a PNG file, from the iCCP
-// chunk (PNG 1.5 §11.3.3.3), or nil.
-func pngProfile(data []byte) []byte {
-	if !bytes.HasPrefix(data, pngSignature) {
-		return nil
-	}
-	for pos := len(pngSignature); pos+8 <= len(data); {
-		size := int(binary.BigEndian.Uint32(data[pos:]))
-		kind := string(data[pos+4 : pos+8])
-		end := pos + 8 + size
-		if size < 0 || end+4 > len(data) {
-			return nil
-		}
-		switch kind {
-		case "iCCP":
-			return inflateProfile(data[pos+8 : end])
-		case "IDAT", "IEND":
-			return nil
-		}
-		pos = end + 4
-	}
-	return nil
-}
-
-// inflateProfile decodes the body of an iCCP chunk: a name, a null, the
-// compression method (0 is deflate) and the compressed profile.
-func inflateProfile(chunk []byte) []byte {
-	name := bytes.IndexByte(chunk, 0)
-	if name < 0 || name > 79 || len(chunk) < name+2 || chunk[name+1] != 0 {
-		return nil
-	}
-	zr, err := zlib.NewReader(bytes.NewReader(chunk[name+2:]))
-	if err != nil {
-		return nil
-	}
-	defer zr.Close()
-	profile, err := io.ReadAll(io.LimitReader(zr, 16<<20))
-	if err != nil {
-		return nil
-	}
-	return profile
-}
-
-// profileSpace returns the number of color components of the data color
-// space of an ICC profile (ICC.1:2010 §7.2.6), or 0 for a malformed header or
-// a space the PDF color spaces do not cover.
-func profileSpace(profile []byte) int {
-	if len(profile) < 128 || string(profile[36:40]) != "acsp" {
-		return 0
-	}
-	switch string(profile[16:20]) {
-	case "GRAY":
-		return 1
-	case "RGB ":
-		return 3
-	case "CMYK":
-		return 4
-	}
-	return 0
-}
 
 // predictorFilter filters every row of a bpp-bytes-per-pixel image the way PNG
 // does (PNG 1.5 §9) and prepends the filter type to each row. The filter of

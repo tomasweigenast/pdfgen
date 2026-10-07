@@ -247,67 +247,25 @@ func TestAdobeCMYKJPEGIsInverted(t *testing.T) {
 	}
 }
 
-func TestEmbeddedProfileBecomesICCBasedColorSpace(t *testing.T) {
-	data := readResource(t, "cmyk_with_icc.jpg")
-	e := embed(t, loadResource(t, "cmyk_with_icc.jpg", Orientation{}, Options{}), false, 1)
-	cs, ok := e.get(t, "ColorSpace").(writer.Array)
-	if !ok || len(cs) != 2 || cs[0] != writer.Name("ICCBased") {
-		t.Fatalf("color space = %v", e.get(t, "ColorSpace"))
+func TestEmbeddedProfileIsNotUsedAsColorSpace(t *testing.T) {
+	for _, file := range []string{"cmyk_with_icc.jpg", "cmyk_without_icc.jpg"} {
+		e := embed(t, loadResource(t, file, Orientation{}, Options{}), false, 1)
+		if cs := e.get(t, "ColorSpace"); cs != writer.Name("DeviceCMYK") {
+			t.Errorf("%s color space = %v", file, cs)
+		}
 	}
-	o, _ := e.pdf.Object(cs[1].(writer.Ref))
-	profile := o.(*writer.Stream)
-	if dictInt(t, profile.Dict, "N") != 4 || dictName(profile.Dict, "Alternate") != "DeviceCMYK" {
-		t.Errorf("profile dictionary = %v", profile.Dict)
-	}
-	if !bytes.Contains(data, profile.Data[:128]) || len(profile.Data) < 128 {
-		t.Error("profile is not the one in the file")
-	}
-	if profile.Compress != nil {
-		t.Error("profile stream overrides compression")
-	}
-
-	e = embed(t, loadResource(t, "cmyk_without_icc.jpg", Orientation{}, Options{}), false, 1)
-	if cs := e.get(t, "ColorSpace"); cs != writer.Name("DeviceCMYK") {
-		t.Errorf("color space without profile = %v", cs)
-	}
-}
-
-func TestPNGProfileBecomesICCBasedColorSpace(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 1, 1))
+	img.SetNRGBA(0, 0, color.NRGBA{1, 2, 3, 255})
 	profile := make([]byte, 160)
 	copy(profile[16:], "RGB ")
 	copy(profile[36:], "acsp")
 	iccp := append([]byte("test\x00\x00"), zlibBytes(profile)...)
-	img := image.NewNRGBA(image.Rect(0, 0, 1, 1))
-	img.SetNRGBA(0, 0, color.NRGBA{1, 2, 3, 255})
-
-	r, err := NewRaster("icc", rgbaPNG(t, img, [2][]byte{[]byte("iCCP"), iccp}), Orientation{}, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	e := embed(t, r, false, 1)
-	cs, ok := e.get(t, "ColorSpace").(writer.Array)
-	if !ok {
-		t.Fatalf("color space = %v", e.get(t, "ColorSpace"))
-	}
-	o, _ := e.pdf.Object(cs[1].(writer.Ref))
-	if got := o.(*writer.Stream).Data; !bytes.Equal(got, profile) {
-		t.Error("profile data differs")
-	}
-}
-
-func TestProfileOfAnotherColorSpaceIsIgnored(t *testing.T) {
-	profile := make([]byte, 160)
-	copy(profile[16:], "CMYK")
-	copy(profile[36:], "acsp")
-	iccp := append([]byte("test\x00\x00"), zlibBytes(profile)...)
-	img := image.NewNRGBA(image.Rect(0, 0, 1, 1))
-	img.SetNRGBA(0, 0, color.NRGBA{1, 2, 3, 255})
 	r, err := NewRaster("icc", rgbaPNG(t, img, [2][]byte{[]byte("iCCP"), iccp}), Orientation{}, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cs := embed(t, r, false, 1).get(t, "ColorSpace"); cs != writer.Name("DeviceRGB") {
-		t.Errorf("color space = %v", cs)
+		t.Errorf("PNG color space = %v", cs)
 	}
 }
 

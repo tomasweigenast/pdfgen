@@ -50,7 +50,6 @@ type Raster struct {
 	pixmap
 	id    string
 	ratio float64
-	icc   []byte
 	opts  Options
 }
 
@@ -79,7 +78,6 @@ func NewRaster(id string, data []byte, orientation Orientation, opts Options) (*
 		if info.components != 1 && info.components != 3 && info.components != 4 {
 			return nil, fmt.Errorf("unsupported JPEG with %d components", info.components)
 		}
-		r.icc = info.icc
 		passthrough = pixmap{
 			width: info.width, height: info.height, components: info.components,
 			jpeg: data, invert: info.components == 4 && info.adobe,
@@ -102,9 +100,6 @@ func NewRaster(id string, data []byte, orientation Orientation, opts Options) (*
 		return r.finish()
 	}
 	pm := extract(img, format == "png")
-	if !isJPEG && format == "png" {
-		r.icc = pngProfile(data)
-	}
 	pm.samples, pm.width, pm.height = orient(pm.samples, pm.width, pm.height, pm.components, angle, flip)
 	if pm.alpha != nil {
 		pm.alpha, _, _ = orient(pm.alpha, img.Bounds().Dx(), img.Bounds().Dy(), 1, angle, flip)
@@ -128,9 +123,6 @@ func (r *Raster) finish() (*Raster, error) {
 	r.ratio = math.Inf(1)
 	if r.height != 0 {
 		r.ratio = float64(r.width) / float64(r.height)
-	}
-	if r.icc != nil && profileSpace(r.icc) != r.components {
-		r.icc = nil
 	}
 	return r, nil
 }
@@ -307,7 +299,7 @@ func (r *Raster) Embed(pdf *writer.PDF, interpolate bool, dpiRatio float64) (wri
 		"Subtype", writer.Name("Image"),
 		"Width", pm.width,
 		"Height", pm.height,
-		"ColorSpace", r.colorSpace(pdf, pm.components),
+		"ColorSpace", colorSpace(pm.components),
 		"BitsPerComponent", 8,
 		"Interpolate", interpolate,
 	)
@@ -359,21 +351,16 @@ func rawStream(dict *writer.Dict, data []byte) *writer.Stream {
 	return &writer.Stream{Dict: dict, Data: data, Compress: &off}
 }
 
-func (r *Raster) colorSpace(pdf *writer.PDF, components int) writer.Object {
-	var device writer.Name
-	switch components {
+// colorSpace returns the device color space for n components. Embedded
+// profiles are not used: they only apply through @color-profile.
+func colorSpace(n int) writer.Name {
+	switch n {
 	case 1:
-		device = "DeviceGray"
+		return "DeviceGray"
 	case 4:
-		device = "DeviceCMYK"
-	default:
-		device = "DeviceRGB"
+		return "DeviceCMYK"
 	}
-	if r.icc == nil {
-		return device
-	}
-	profile := pdf.Add(&writer.Stream{Dict: writer.NewDict("N", components, "Alternate", device), Data: r.icc})
-	return writer.Array{writer.Name("ICCBased"), profile}
+	return "DeviceRGB"
 }
 
 // reduced returns the image scaled by ratio, or the image itself when it

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"sort"
 )
 
 // jpegInfo is what the PDF needs to know about a JPEG file, read from its
@@ -17,18 +16,13 @@ type jpegInfo struct {
 	// adobe reports an APP14 segment. Adobe writes CMYK data inverted, so the
 	// PDF has to invert it back.
 	adobe bool
-	icc   []byte
 }
-
-var iccTag = []byte("ICC_PROFILE\x00")
 
 func scanJPEG(data []byte) (jpegInfo, error) {
 	var info jpegInfo
 	if !bytes.HasPrefix(data, []byte{0xff, 0xd8}) {
 		return info, errors.New("missing JPEG start of image")
 	}
-	chunks := map[int][]byte{}
-	chunkCount := 0
 	for pos := 2; pos+2 <= len(data); {
 		if data[pos] != 0xff {
 			return info, errors.New("invalid JPEG marker")
@@ -67,10 +61,6 @@ func scanJPEG(data []byte) (jpegInfo, error) {
 			info.components = int(segment[5])
 		case marker == 0xee:
 			info.adobe = true
-		case marker == 0xe2 && bytes.HasPrefix(segment, iccTag) && len(segment) > len(iccTag)+2:
-			seq := int(segment[len(iccTag)])
-			chunkCount = int(segment[len(iccTag)+1])
-			chunks[seq] = segment[len(iccTag)+2:]
 		case marker == 0xda:
 			pos = len(data)
 			continue
@@ -86,7 +76,6 @@ func scanJPEG(data []byte) (jpegInfo, error) {
 	if info.width == 0 || info.height == 0 {
 		return info, errors.New("JPEG without dimensions")
 	}
-	info.icc = joinICC(chunks, chunkCount)
 	return info, nil
 }
 
@@ -94,25 +83,4 @@ func scanJPEG(data []byte) (jpegInfo, error) {
 // DHT, JPG and DAC.
 func isSOF(marker byte) bool {
 	return marker >= 0xc0 && marker <= 0xcf && marker != 0xc4 && marker != 0xc8 && marker != 0xcc
-}
-
-// joinICC reassembles a profile split over several APP2 segments
-// (ICC.1:2010 §B.4). It returns nil unless every part is present.
-func joinICC(chunks map[int][]byte, count int) []byte {
-	if count == 0 || len(chunks) != count {
-		return nil
-	}
-	seqs := make([]int, 0, count)
-	for seq := range chunks {
-		seqs = append(seqs, seq)
-	}
-	sort.Ints(seqs)
-	var profile []byte
-	for i, seq := range seqs {
-		if seq != i+1 {
-			return nil
-		}
-		profile = append(profile, chunks[seq]...)
-	}
-	return profile
 }

@@ -113,22 +113,13 @@ func TestDrawPaintsTransparentImagesOverTheBackground(t *testing.T) {
 	}
 }
 
-func TestDrawPaintsCMYKImages(t *testing.T) {
-	// The profile moves the blue a few levels from the device conversion.
-	tests := []struct {
-		file string
-		want testutil.Pixel
-	}{
-		{"cmyk_without_icc.jpg", testutil.PixelsByChar['Q']},
-		{"cmyk_with_icc.jpg", testutil.PixelsByChar['P']},
-	}
-	for _, tt := range tests {
-		t.Run(tt.file, func(t *testing.T) {
-			r := loadResource(t, tt.file, Orientation{}, Options{})
+func TestDrawPaintsCMYKImagesWithDeviceColors(t *testing.T) {
+	// The embedded profile does not change the rendering.
+	for _, file := range []string{"cmyk_without_icc.jpg", "cmyk_with_icc.jpg"} {
+		t.Run(file, func(t *testing.T) {
+			r := loadResource(t, file, Orientation{}, Options{})
 			pdf := renderPDF(t, 2, 2, func(s *stream.Stream) { drawAt(s, r, 0, 0, 2, 2, "auto") })
-			w, h, got := testutil.ImagePixels(testutil.RasterizePDF(t, pdf, testutil.PixelZoom))
-			want := []testutil.Pixel{tt.want, tt.want, tt.want, tt.want}
-			testutil.AssertPixelsEqual(t, strings.ReplaceAll(t.Name(), "/", "_"), w, h, got, want, 3)
+			testutil.AssertPixelsPDF(t, "QQ\nQQ", pdf)
 		})
 	}
 }
