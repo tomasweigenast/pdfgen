@@ -18,6 +18,12 @@ This product also includes the css-parsing-tests suite by Simon Sapin
 domain under CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/).
 The files concerned are the JSON files under internal/css/syntax/testdata/.
 
+This product also includes selector test documents and test cases derived
+from the web-platform-tests repository (https://github.com/web-platform-tests/wpt,
+selectors-api), distributed under the W3C 3-Clause BSD Test Suite License. The
+files concerned are under internal/css/selector/testdata/. The play text in
+play.xhtml is in the public domain.
+
 The original license follows.
 
 BSD 3-Clause License

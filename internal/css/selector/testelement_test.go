@@ -185,3 +185,27 @@ func idsOf(els []*testElement) []string {
 	}
 	return ids
 }
+
+// addChild appends an element with the given id as the last child.
+func (e *testElement) addChild(space, local, id string) *testElement {
+	c := &testElement{
+		name:   xml.Name{Space: space, Local: local},
+		attrs:  map[xml.Name]string{{Local: "id"}: id},
+		parent: e,
+		index:  len(e.children),
+		html:   e.html,
+	}
+	e.children = append(e.children, c)
+	return c
+}
+
+// find returns the first element in tree order with the given id.
+func (e *testElement) find(id string) *testElement {
+	var found *testElement
+	e.walk(func(el *testElement) {
+		if found == nil && el.ID() == id {
+			found = el
+		}
+	})
+	return found
+}
