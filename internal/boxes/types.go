@@ -74,7 +74,7 @@ type ReplacedFields struct {
 	Replacement images.Image
 }
 
-// ReplacedBox is the reference name of [ReplacedFields].
+// ReplacedBox is the name of the CSS 2.1 class that ReplacedFields implements.
 type ReplacedBox = ReplacedFields
 
 // ReplacedBase returns the fields of a replaced box.

@@ -11,7 +11,7 @@ type ParentFields struct {
 // ParentBase returns the fields of a box with children.
 func (p *ParentFields) ParentBase() *ParentFields { return p }
 
-// ParentBox is the reference name of [ParentFields].
+// ParentBox is the name of the CSS 2.1 class that ParentFields implements.
 type ParentBox = ParentFields
 
 // Translate moves the box and its children.
