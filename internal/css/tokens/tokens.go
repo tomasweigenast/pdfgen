@@ -163,8 +163,9 @@ func GetLength(token syntax.Node, negative, percentage bool) (props.Length, bool
 			if !negative {
 				switch t := token.(type) {
 				case *syntax.DimensionToken, *syntax.PercentageToken:
+					// Clamped like max(0, v), which also turns NaN into 0.
 					v, _ := numeric(t)
-					if v.Value < 0 {
+					if !(v.Value > 0) {
 						token = tokenizeLike(t, 0)
 					}
 				}
