@@ -34,6 +34,7 @@ type referenceCase struct {
 	Mode      string   `json:"mode"`
 	LineStart bool     `json:"line_start"`
 	Minimum   bool     `json:"minimum"`
+	Justify   float64  `json:"justify"`
 }
 
 type referenceLine struct {
@@ -167,7 +168,7 @@ func runCase(ctx *Context, c referenceCase, style *Style) []lineResult {
 		out = append(out, lineResult{r.Layout.Text, r.Length, r.ResumeIndex, r.Width, r.Height, r.Baseline, adv, off})
 	}
 	if c.Mode == "split" {
-		record(SplitFirstLine(ctx, c.Text, style, c.Width, 0, c.LineStart, c.Minimum), c.Text)
+		record(SplitFirstLine(ctx, c.Text, style, c.Width, c.Justify, c.LineStart, c.Minimum), c.Text)
 		return out
 	}
 	skip := 0
@@ -176,7 +177,7 @@ func runCase(ctx *Context, c referenceCase, style *Style) []lineResult {
 		if part == "" {
 			break
 		}
-		r := SplitFirstLine(ctx, part, style, c.Width, 0, c.LineStart, c.Minimum)
+		r := SplitFirstLine(ctx, part, style, c.Width, c.Justify, c.LineStart, c.Minimum)
 		record(r, part)
 		if r.ResumeIndex < 0 {
 			break
