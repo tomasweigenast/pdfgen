@@ -20,6 +20,7 @@ type item struct {
 	level        bidi.Level
 	script       language.Script
 	spacing      int
+	spaced       bool
 	// needHyphen appends a hyphen when shaping, for a line broken after
 	// the item.
 	needHyphen bool
@@ -154,7 +155,7 @@ func (l *Layout) itemize(start, end int) []*item {
 		r := para[i]
 		pos := start + i
 		newRun := i == 0 || levels[i] != levels[i-1] || scripts[i] != scripts[i-1] ||
-			l.spacing[pos] != l.spacing[pos-1]
+			l.spacing[pos] != l.spacing[pos-1] || l.spaced[pos] != l.spaced[pos-1]
 		if newRun {
 			if cur != nil && cur.face == nil {
 				fillFace(items, spaceFace, 0)
@@ -203,12 +204,12 @@ func (l *Layout) itemize(start, end int) []*item {
 			}
 			cur.end = startAt
 			cur = &item{start: startAt, end: pos + 1, face: face, fontPosition: position,
-				level: levels[i], script: scripts[i], spacing: l.spacing[pos]}
+				level: levels[i], script: scripts[i], spacing: l.spacing[pos], spaced: l.spaced[pos]}
 			items = append(items, cur)
 			continue
 		}
 		cur = &item{start: pos, end: pos + 1, face: face, fontPosition: position,
-			level: levels[i], script: scripts[i], spacing: l.spacing[pos]}
+			level: levels[i], script: scripts[i], spacing: l.spacing[pos], spaced: l.spaced[pos]}
 		items = append(items, cur)
 	}
 	if cur != nil && cur.face == nil {

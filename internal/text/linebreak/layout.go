@@ -133,7 +133,10 @@ type Layout struct {
 	offsets []int // byte offset of each character, and the length
 	// spacing is the letter-spacing of each character, word-spacing
 	// included for separators, in 1/1024 px.
-	spacing       []int
+	spacing []int
+	// spaced marks the characters given a letter-spacing, which may be
+	// zero for separators.
+	spaced        []bool
 	insertHyphens bool
 	tabStop       int // distance between tab stops in 1/1024 px
 
@@ -214,9 +217,13 @@ func (l *Layout) setText(text string, justify bool) {
 	}
 
 	l.spacing = make([]int, len(l.runes)+1)
+	l.spaced = make([]bool, len(l.runes)+1)
 	if text != "" && (wordSpacing != 0 || l.Style.LetterSpacing != 0) {
-		for i := range letterSpaced {
-			l.spacing[i] = letterSpacing
+		if letterSpacing != 0 {
+			for i := range letterSpaced {
+				l.spacing[i] = letterSpacing
+				l.spaced[i] = true
+			}
 		}
 		if wordSpacing != 0 {
 			spaceSpacing := int(wordSpacing*fonts.UnitsPerPx + float64(letterSpacing))
@@ -232,6 +239,7 @@ func (l *Layout) setText(text string, justify bool) {
 					factor = 2
 				}
 				l.spacing[i] = factor * spaceSpacing
+				l.spaced[i] = true
 			}
 		}
 	}
@@ -373,9 +381,15 @@ func (l *Layout) shapeItem(it *item) []Glyph {
 	if s := l.Style.shapingLanguage(); s != "" {
 		lang = language.NewLanguage(s)
 	}
+	features := l.Style.features()
+	if it.spaced {
+		// Ligatures would glue letters that spacing must separate.
+		features = append(features, fonts.Feature{Tag: "liga"}, fonts.Feature{Tag: "clig"},
+			fonts.Feature{Tag: "dlig"}, fonts.Feature{Tag: "hlig"})
+	}
 	shaped := l.ctx.Shaper.Shape(shape.Run{
 		Text: l.runes, Start: it.start, End: it.end,
-		Face: it.face, Size: size, Features: l.Style.features(),
+		Face: it.face, Size: size, Features: features,
 		Lang: lang, Script: it.script, RTL: it.rtl(), Hyphen: it.needHyphen,
 	})
 	glyphs := make([]Glyph, len(shaped))

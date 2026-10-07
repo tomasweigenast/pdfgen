@@ -261,3 +261,24 @@ func TestScriptRunsResolveCommonCharacters(t *testing.T) {
 		}
 	}
 }
+
+func TestLetterSpacingTurnsLigaturesOff(t *testing.T) {
+	ctx := newTestContext(t)
+	l := layoutOf(t, ctx, testStyle(), "liga", -1)
+	if n := len(l.FirstLine().Runs[0].Glyphs); n != 1 {
+		t.Fatalf("got %d glyphs, want the ligature", n)
+	}
+	style := testStyle()
+	style.LetterSpacing = 1
+	l = layoutOf(t, ctx, style, "liga", -1)
+	if n := len(l.FirstLine().Runs[0].Glyphs); n != 4 {
+		t.Errorf("got %d glyphs with letter-spacing, want 4", n)
+	}
+	// Word-spacing alone only spaces separators.
+	style = testStyle()
+	style.WordSpacing = 1
+	l = layoutOf(t, ctx, style, "liga liga", -1)
+	if n := len(l.FirstLine().Runs[0].Glyphs); n != 1 {
+		t.Errorf("got %d glyphs with word-spacing, want the ligature", n)
+	}
+}
