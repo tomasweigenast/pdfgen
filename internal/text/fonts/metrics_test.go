@@ -192,3 +192,16 @@ func TestWOFFMetricsMatchOpenType(t *testing.T) {
 		t.Errorf("metrics differ: otf %+v, woff %+v", a, b)
 	}
 }
+
+// At 7.5 px the descender of the test font scales to 1537.5 units, which
+// table values round down to 1537: the line is exactly 7.5 px high.
+func TestAscentAndDescentRoundLikeTableValues(t *testing.T) {
+	f, err := NewFace(readResource(t, "testfont.otf"), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := f.Metrics(7.5)
+	if m.Ascent != 6143 || m.Descent != 1537 {
+		t.Errorf("ascent %d, descent %d; want 6143 and 1537", m.Ascent, m.Descent)
+	}
+}

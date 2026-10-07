@@ -40,6 +40,12 @@ func (f *Face) Metrics(size float64) Metrics {
 		Ascent:     int32(ext.Ascender),
 		Descent:    int32(-ext.Descender),
 	}
+	if raw, ok := f.GoText.FontHExtents(); ok {
+		// Scaled like the other table values: go-text rounds half away
+		// from zero, which gives one unit more for some descenders.
+		m.Ascent = f.scaleMetric(raw.Ascender, units)
+		m.Descent = -f.scaleMetric(raw.Descender, units)
+	}
 	m.UnderlinePosition = f.scaleMetric(f.GoText.LineMetric(font.UnderlinePosition), units)
 	m.UnderlineThickness = f.scaleMetric(f.GoText.LineMetric(font.UnderlineThickness), units)
 	m.StrikethroughPosition = f.scaleMetric(f.GoText.LineMetric(font.StrikethroughPosition), units)
