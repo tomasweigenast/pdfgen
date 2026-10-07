@@ -426,3 +426,20 @@ func TestDecodeBodyDeflate(t *testing.T) {
 		t.Errorf("got %q, %v", got, err)
 	}
 }
+
+func TestFetchHTTPSUsesTLSConfig(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "secure")
+	}))
+	t.Cleanup(srv.Close)
+
+	if _, err := NewDefaultFetcher().Fetch(context.Background(), srv.URL, nil); err == nil {
+		t.Error("certificate of an unknown authority accepted")
+	}
+
+	f := NewDefaultFetcher()
+	f.TLSConfig = srv.Client().Transport.(*http.Transport).TLSClientConfig
+	if _, body := fetchBody(t, f, srv.URL, nil); body != "secure" {
+		t.Errorf("body = %q", body)
+	}
+}
