@@ -91,7 +91,7 @@ func (e *Element) Classes() []string {
 // Lang implements selector.Element.
 func (e *Element) Lang() string {
 	if e.lang == nil {
-		l := selector.InheritedLang(e, e.doc.Language)
+		l := selector.InheritedLang(e, nil)
 		e.lang = &l
 	}
 	return *e.lang

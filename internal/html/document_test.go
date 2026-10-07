@@ -370,36 +370,9 @@ func TestElementLanguage(t *testing.T) {
 			want: map[string]string{"a": "de"},
 		},
 		{
-			name: "meta content-language",
+			name: "meta content-language is ignored",
 			html: `<html><head><meta http-equiv=Content-Language content="Es-AR"></head><body><p id=a>x</p>`,
-			want: map[string]string{"a": "es-ar"},
-		},
-		{
-			name: "attribute beats meta",
-			html: `<html lang=en><head><meta http-equiv=content-language content=es></head><body><p id=a>x</p>`,
-			want: map[string]string{"a": "en"},
-		},
-		{
-			name: "meta with several languages is not a language",
-			html: `<html><head><meta http-equiv=content-language content="en, fr"></head><body><p id=a>x</p>`,
 			want: map[string]string{"a": ""},
-		},
-		{
-			name: "last meta wins",
-			html: `<html><head><meta http-equiv=content-language content=en><meta http-equiv=content-language content=fr></head><body><p id=a>x</p>`,
-			want: map[string]string{"a": "fr"},
-		},
-		{
-			name: "transport language",
-			html: `<body><p id=a>x</p>`,
-			opts: []Option{WithContentLanguage("PT-br")},
-			want: map[string]string{"a": "pt-br"},
-		},
-		{
-			name: "meta beats transport",
-			html: `<html><head><meta http-equiv=content-language content=en></head><body><p id=a>x</p>`,
-			opts: []Option{WithContentLanguage("pt")},
-			want: map[string]string{"a": "en"},
 		},
 	}
 	for _, tt := range tests {
