@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tomasweigenast/pdfgen/internal/css/props"
 	"github.com/tomasweigenast/pdfgen/internal/text/fonts"
 )
 
@@ -94,6 +95,9 @@ func referenceStyle(t *testing.T, raw map[string]json.RawMessage) *Style {
 	get("font_weight", &s.Font.Weight)
 	get("font_style", &s.Font.Style)
 	get("font_stretch", &s.Font.Stretch)
+	var kerning string
+	get("font_kerning", &kerning)
+	s.Features.Kerning = props.Keyword(kerning)
 
 	type dim struct {
 		Value float64 `json:"value"`
