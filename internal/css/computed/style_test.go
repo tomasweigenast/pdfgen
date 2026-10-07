@@ -55,3 +55,13 @@ func TestGettersReturnInitialValuesOfTheirType(t *testing.T) {
 		t.Errorf("FontFamily() = %v, want [serif]", got)
 	}
 }
+
+func TestResolvedColorReplacesCurrentColor(t *testing.T) {
+	s := family(t, "color: red; border-top-color: currentcolor; border-left-color: blue")[0]
+	if got := s.ResolvedColor(props.PropBorderTopColor); got.IsCurrentColor() || got.Coordinates[0] != 1 || got.Coordinates[2] != 0 {
+		t.Errorf("border-top-color = %#v, want red", got)
+	}
+	if got := s.ResolvedColor(props.PropBorderLeftColor); got.Coordinates[2] != 1 || got.Coordinates[0] != 0 {
+		t.Errorf("border-left-color = %#v, want blue", got)
+	}
+}
