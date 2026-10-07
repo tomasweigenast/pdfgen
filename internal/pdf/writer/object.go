@@ -212,3 +212,12 @@ func deflate(b []byte) []byte {
 	_ = zw.Close()
 	return buf.Bytes()
 }
+
+// AppendReal appends f formatted as a PDF real number: integral values
+// without a fractional part, others with at most six decimals and no
+// trailing zeros. Content stream operands use the same format.
+func AppendReal(dst []byte, f float64) []byte { return appendReal(dst, f) }
+
+// Append appends the serialization of o to dst, with streams left
+// uncompressed. A nil o is written as null.
+func Append(dst []byte, o Object) []byte { return appendObject(dst, o, false) }

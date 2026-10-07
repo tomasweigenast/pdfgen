@@ -177,3 +177,12 @@ func TestCompressedStreamOverridesFilterKeepingPosition(t *testing.T) {
 		t.Errorf("got %q", out)
 	}
 }
+
+func TestAppendHelpers(t *testing.T) {
+	buf := AppendReal([]byte("x "), 1.50)
+	buf = append(buf, ' ')
+	buf = Append(buf, Array{Int(1), Name("A"), nil})
+	if got, want := string(buf), "x 1.5 [1 /A null]"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
