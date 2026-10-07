@@ -63,7 +63,7 @@ func NewGetter(ctx context.Context, fetcher urls.Fetcher, cache *Cache, opts Opt
 			if urls.IsFatal(err) {
 				return nil, err
 			}
-			logging.Warnf("Failed to load image at %q: %s", url, err)
+			logging.Errorf("Failed to load image at %s: %s", logging.Repr(url), err)
 			img = nil
 		}
 		cache.put(key, img)
