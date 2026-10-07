@@ -61,6 +61,11 @@ type Run struct {
 	Lang   language.Language
 	Script language.Script
 	RTL    bool
+
+	// Hyphen appends a hyphen to the run, in the cluster of its last
+	// character, as when a line is broken inside a word: U+2010, or
+	// U+002D when the face has no glyph for U+2010.
+	Hyphen bool
 }
 
 // Shaper converts a run into glyphs in visual order.
@@ -88,6 +93,19 @@ func (GoText) Shape(r Run) []Glyph {
 
 	buf := harfbuzz.NewBuffer()
 	buf.AddRunes(r.Text, r.Start, r.End-r.Start)
+	if r.Hyphen {
+		// AddRune drops the text after the run from the shaping context,
+		// so the hyphen is shaped as the last character of the text.
+		if face.HasGlyph('\u2010') {
+			buf.AddRune('\u2010', r.End-1)
+		} else if face.HasGlyph('-') {
+			buf.AddRune('-', r.End-1)
+		}
+	}
+	// Runs are flagged as the beginning and end of a text, which only
+	// changes how broken clusters are shown; the surrounding characters
+	// are still used as context.
+	buf.Flags = harfbuzz.Bot | harfbuzz.Eot
 	buf.ClusterLevel = harfbuzz.MonotoneCharacters
 	buf.Props.Direction = harfbuzz.LeftToRight
 	if r.RTL {

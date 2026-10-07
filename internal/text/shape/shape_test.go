@@ -206,3 +206,20 @@ func TestLatinLigatureWithSystemFont(t *testing.T) {
 		t.Errorf("liga on gives %d glyphs, off gives %d, want 1 and 2", len(on), len(off))
 	}
 }
+
+func TestHyphenIsAppendedToTheLastCluster(t *testing.T) {
+	f := testFace(t)
+	runes := []rune("aé")
+	plain := GoText{}.Shape(Run{Text: runes, End: len(runes), Face: f, Size: 16})
+	glyphs := GoText{}.Shape(Run{Text: runes, End: len(runes), Face: f, Size: 16, Hyphen: true})
+	if len(glyphs) != len(plain)+1 {
+		t.Fatalf("got %d glyphs, want %d", len(glyphs), len(plain)+1)
+	}
+	last := glyphs[len(glyphs)-1]
+	if last.Cluster != 1 {
+		t.Errorf("hyphen cluster = %d, want 1", last.Cluster)
+	}
+	if last.XAdvance != 16*fonts.UnitsPerPx {
+		t.Errorf("hyphen advance = %d, want one em", last.XAdvance)
+	}
+}
