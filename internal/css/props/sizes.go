@@ -1,16 +1,20 @@
 package props
 
+// mediumFontSize is the initial font size in pixels. It is a variable so
+// that the keyword sizes below are rounded like any floating-point product.
+var mediumFontSize = 16.0
+
 // FontSizeKeywords gives the size in pixels of the absolute font-size
 // keywords: medium is the initial font size and the others are a ratio of it
 // (CSS Fonts 3 §3.5).
 var FontSizeKeywords = map[Keyword]float64{
-	"xx-small": 16 * 3 / 5,
-	"x-small":  16 * 3 / 4,
-	"small":    16 * 8 / 9,
-	"medium":   16,
-	"large":    16 * 6 / 5,
-	"x-large":  16 * 3 / 2,
-	"xx-large": 16 * 2,
+	"xx-small": mediumFontSize * (3.0 / 5),
+	"x-small":  mediumFontSize * (3.0 / 4),
+	"small":    mediumFontSize * (8.0 / 9),
+	"medium":   mediumFontSize,
+	"large":    mediumFontSize * (6.0 / 5),
+	"x-large":  mediumFontSize * (3.0 / 2),
+	"xx-large": mediumFontSize * 2,
 }
 
 // BorderWidthKeywords gives the width in pixels of thin, medium and thick.
