@@ -26,6 +26,14 @@ func Warnf(format string, args ...any) {
 	}
 }
 
+// Debugf logs a formatted message on Logger at debug level. It is dropped
+// unless the handler accepts debug entries, as when a test captures them.
+func Debugf(format string, args ...any) {
+	if Logger.Enabled(context.Background(), slog.LevelDebug) {
+		Logger.Debug(fmt.Sprintf(format, args...))
+	}
+}
+
 // Errorf logs a formatted error on Logger.
 func Errorf(format string, args ...any) {
 	Logger.Error(fmt.Sprintf(format, args...))

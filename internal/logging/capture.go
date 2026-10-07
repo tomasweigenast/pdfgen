@@ -12,10 +12,11 @@ type Record struct {
 	Message string
 }
 
-// Capture collects the entries written to Logger, at info level and above,
-// until Close is called. Progress is not captured. It is meant for tests;
+// Capture collects the entries written to Logger, at info level and above
+// unless started with StartCaptureLevel, until Close is called. Progress is not captured. It is meant for tests;
 // captures must not overlap.
 type Capture struct {
+	level    slog.Level
 	mu       sync.Mutex
 	records  []Record
 	restores []func()
@@ -40,8 +41,12 @@ func levelName(l slog.Level) string {
 }
 
 // StartCapture redirects Logger into a new Capture.
-func StartCapture() *Capture {
-	c := &Capture{}
+func StartCapture() *Capture { return StartCaptureLevel(slog.LevelInfo) }
+
+// StartCaptureLevel is like StartCapture but also collects the entries from
+// the given level up, which may be slog.LevelDebug.
+func StartCaptureLevel(level slog.Level) *Capture {
+	c := &Capture{level: level}
 	h := &captureHandler{c: c}
 	c.restores = []func(){setHandler(Logger, h)}
 	return c
@@ -100,7 +105,7 @@ func (c *Capture) Warnings() []string {
 
 type captureHandler struct{ c *Capture }
 
-func (h *captureHandler) Enabled(_ context.Context, l slog.Level) bool { return l >= slog.LevelInfo }
+func (h *captureHandler) Enabled(_ context.Context, l slog.Level) bool { return l >= h.c.level }
 
 func (h *captureHandler) Handle(_ context.Context, r slog.Record) error {
 	h.c.mu.Lock()

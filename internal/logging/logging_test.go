@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"log/slog"
 	"slices"
 	"testing"
 )
@@ -39,5 +40,24 @@ func TestCaptureSeesDerivedLoggers(t *testing.T) {
 	Logger.With("key", "value").WithGroup("g").Warn("derived")
 	if got := c.Warnings(); !slices.Equal(got, []string{"derived"}) {
 		t.Errorf("Warnings() = %q", got)
+	}
+}
+
+func TestCaptureLevelCollectsDebugEntries(t *testing.T) {
+	c := StartCaptureLevel(slog.LevelDebug)
+	Debugf("details %d", 1)
+	Warnf("careful")
+	c.Close()
+
+	want := []string{"DEBUG: details 1", "WARNING: careful"}
+	if got := c.Lines(); !slices.Equal(got, want) {
+		t.Errorf("Lines() = %q, want %q", got, want)
+	}
+
+	c = StartCapture()
+	Debugf("dropped")
+	c.Close()
+	if got := c.Messages(); len(got) != 0 {
+		t.Errorf("default capture kept debug entries: %q", got)
 	}
 }
