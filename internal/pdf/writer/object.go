@@ -191,7 +191,7 @@ func (s *Stream) appendTo(dst []byte, compress bool) []byte {
 		compress = *s.Compress
 	}
 	data := s.Data
-	d := s.Dict.clone()
+	d := s.Dict.Clone()
 	if compress {
 		d.Set("Filter", Name("FlateDecode"))
 		data = deflate(data)

@@ -105,8 +105,8 @@ func (d *Dict) Len() int {
 	return len(d.keys)
 }
 
-// clone returns a shallow copy; a nil receiver gives an empty dictionary.
-func (d *Dict) clone() *Dict {
+// Clone returns a shallow copy; a nil receiver gives an empty dictionary.
+func (d *Dict) Clone() *Dict {
 	c := &Dict{}
 	if d == nil {
 		return c
