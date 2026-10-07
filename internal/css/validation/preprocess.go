@@ -13,7 +13,7 @@ import (
 
 // VendorPrefix is the prefix of proprietary properties and of the unstable
 // ones that are also accepted without it. An empty prefix disables them.
-var VendorPrefix string
+var VendorPrefix = "-pdfgen-"
 
 func warnf(format string, args ...any) { logging.Warnf(format, args...) }
 

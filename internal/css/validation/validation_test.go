@@ -15,20 +15,20 @@ func TestNotPrintPropertiesAreIgnored(t *testing.T) {
 }
 
 func TestUnstablePropertyWithPrefixWarns(t *testing.T) {
-	old := VendorPrefix
-	VendorPrefix = "-x-"
-	defer func() { VendorPrefix = old }()
-	got := getValue(t, "-x-max-lines: 3", "prefixes on unstable attributes are deprecated")
+	got := getValue(t, "-pdfgen-max-lines: 3", "prefixes on unstable attributes are deprecated")
 	if got != (props.IntOrKeyword{N: 3}) {
 		t.Errorf("got %#v", got)
 	}
 }
 
 func TestStablePropertyWithPrefixIsIgnored(t *testing.T) {
-	old := VendorPrefix
-	VendorPrefix = "-x-"
-	defer func() { VendorPrefix = old }()
-	assertInvalid(t, "-x-display: block", "prefix on this attribute is not supported")
+	assertInvalid(t, "-pdfgen-display: block", "prefix on this attribute is not supported")
+}
+
+func TestProprietaryPropertyWithPrefix(t *testing.T) {
+	if got := getValue(t, `-pdfgen-lang: "en"`, ""); got != props.String("en") {
+		t.Errorf("got %#v", got)
+	}
 }
 
 func TestUnknownPrefixIsIgnored(t *testing.T) {
