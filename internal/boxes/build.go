@@ -57,6 +57,12 @@ func (b *Builder) Build(doc *html.Document) (Box, error) {
 		list = b.ElementToBox(doc.Root, nil)
 		b.root = nil
 	}
+	if len(list) == 0 {
+		if b.err != nil {
+			return nil, b.err
+		}
+		return nil, errors.New("the root element has no box")
+	}
 	box := list[0]
 
 	b.Targets.CheckPendingTargets()
