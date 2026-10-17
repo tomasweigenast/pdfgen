@@ -11,7 +11,7 @@ type BlockResult struct {
 	Box               boxes.Box
 	ResumeAt          ResumeAt
 	NextPage          PageBreak
-	AdjoiningMargins  []float64
+	AdjoiningMargins  *marginList
 	CollapsingThrough bool
 	MaxLines          *int
 }
@@ -66,7 +66,7 @@ type blockOptions struct {
 	SkipStack                        ResumeAt
 	PageIsEmpty                      bool
 	Positioned                       *positionedBoxes
-	AdjoiningMargins                 []float64
+	AdjoiningMargins                 *marginList
 	FirstLetterStyle, FirstLineStyle *computed.Style
 	Discard                          bool
 	MaxLines                         *int

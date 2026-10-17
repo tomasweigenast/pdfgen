@@ -21,18 +21,6 @@ func iterLineBoxes(ctx *Context, box, containing boxes.Box, opts blockOptions, p
 	return func(func(lineResult) bool) {}
 }
 
-// blockLevelLayout lays out a block-level box, dispatching on its type.
-func blockLevelLayout(ctx *Context, box, containing boxes.Box, opts blockOptions) BlockResult {
-	ctx.unimplemented()
-	return BlockResult{}
-}
-
-// blockContainerLayout lays out the children of a block container.
-func blockContainerLayout(ctx *Context, box, containing boxes.Box, opts blockOptions) BlockResult {
-	ctx.unimplemented()
-	return BlockResult{}
-}
-
 // floatLayout positions a floated box and lays out its contents.
 func floatLayout(ctx *Context, box, containing boxes.Box, positioned *positionedBoxes, bottomSpace float64, skip ResumeAt) fragmentResult {
 	ctx.unimplemented()
