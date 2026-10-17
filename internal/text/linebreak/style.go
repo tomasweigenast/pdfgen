@@ -27,7 +27,9 @@ import (
 //	HyphenateLimitZone   hyphenate-limit-zone
 //	TabSize              tab-size
 //
-// Empty keywords mean the initial value of the property.
+// Empty keywords mean the initial value of the property. Hyphenate-character
+// and hyphenate-limit-chars have no keyword: their empty and zero values are
+// as valid as any other, and NewStyle gives their initial values.
 type Style struct {
 	Font     fonts.Description
 	Features fonts.FeatureStyle
@@ -140,20 +142,6 @@ func (s *Style) hyphens() string {
 		return "manual"
 	}
 	return s.Hyphens
-}
-
-func (s *Style) hyphenateCharacter() string {
-	if s.HyphenateCharacter == "" {
-		return "\u2010"
-	}
-	return s.HyphenateCharacter
-}
-
-func (s *Style) limitChars() HyphenateLimitChars {
-	if s.HyphenateLimitChars == (HyphenateLimitChars{}) {
-		return HyphenateLimitChars{5, 2, 2}
-	}
-	return s.HyphenateLimitChars
 }
 
 func (s *Style) tabSize() TabSize {

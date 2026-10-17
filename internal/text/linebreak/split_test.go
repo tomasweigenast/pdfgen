@@ -203,10 +203,6 @@ func TestHyphenateCharacter(t *testing.T) {
 	for _, char := range []string{"!", "à", "ù ù", "", "\u2014\u2014\u2014"} {
 		style := hyphenStyle("fr", "auto")
 		style.HyphenateCharacter = char
-		if char == "" {
-			// An empty string is a valid value, distinct from auto.
-			style.HyphenateCharacter = "\x00"
-		}
 		lines := splitLines(t, ctx, "hyphénation", style, 80)
 		if len(lines) < 2 {
 			t.Errorf("%q: lines %q, want several", char, lines)
@@ -215,7 +211,7 @@ func TestHyphenateCharacter(t *testing.T) {
 		if char != "" && !strings.HasSuffix(lines[0], char) {
 			t.Errorf("%q: first line %q does not end with it", char, lines[0])
 		}
-		full := strings.ReplaceAll(strings.Join(lines, ""), "\x00", "")
+		full := strings.Join(lines, "")
 		if char != "" {
 			full = strings.ReplaceAll(full, char, "")
 		}

@@ -51,7 +51,7 @@ func (l *Layout) Reactivate(style *Style) {
 func firstLineMetrics(line *Line, text string, layout *Layout, resumeIndex int, spaceCollapse bool, style *Style, hyphenated bool) SplitResult {
 	length := line.Length
 	if hyphenated {
-		length -= len(style.hyphenateCharacter())
+		length -= len(style.HyphenateCharacter)
 	} else if resumeIndex >= 0 {
 		// Lines are already split: lay the first one out again without
 		// width, as it is drawn.
@@ -195,10 +195,10 @@ func SplitFirstLine(ctx *Context, text string, style *Style, maxWidth *float64, 
 	if style.Lang != "" {
 		lang = hyphen.LanguageFallback(style.Lang)
 	}
-	limits := style.limitChars()
+	limits := style.HyphenateLimitChars
 	hyphenated := false
 	const softHyphen = "\u00ad"
-	hyphenChar := style.hyphenateCharacter()
+	hyphenChar := style.HyphenateCharacter
 
 	manual := hyphens != "none" && strings.Contains(firstLineText+secondLineText, softHyphen)
 	auto := false

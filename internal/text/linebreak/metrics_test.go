@@ -48,3 +48,13 @@ func TestCharacterRatioOfStyle(t *testing.T) {
 		t.Errorf("ch = %v, want 1", r)
 	}
 }
+
+func TestNewStyleHasTheInitialHyphenation(t *testing.T) {
+	s := NewStyle(16, "testfont")
+	if s.HyphenateCharacter != "‐" {
+		t.Errorf("initial hyphenate-character = %q", s.HyphenateCharacter)
+	}
+	if s.HyphenateLimitChars != (HyphenateLimitChars{5, 2, 2}) {
+		t.Errorf("initial hyphenate-limit-chars = %+v", s.HyphenateLimitChars)
+	}
+}
