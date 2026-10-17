@@ -39,6 +39,7 @@ type Context struct {
 	ForcedBreak   bool
 	InColumn      bool
 
+	lineResume      map[boxes.Box]ResumeAt
 	bfcStack        []*bfcFrame
 	bfcFrames       map[boxes.Box]*bfcFrame
 	brokenOutOfFlow []brokenOutOfFlow
