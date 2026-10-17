@@ -56,3 +56,15 @@ func TestSkipLeadingWhitespaceRetainsNestedContinuation(t *testing.T) {
 		t.Fatalf("whitespace continuation = %v", resume)
 	}
 }
+
+func TestSplitTextOfALoneSpaceWithWordSpacing(t *testing.T) {
+	box := textBox(t, `<p style="font: 10px testfont; white-space: pre-wrap; word-spacing: 2px"> fhejaje if jdej `)
+	ctx := &Context{Text: linebreak.NewContext(box.Style.Context().FontConfig)}
+	result := splitTextBox(ctx, box, 50, 0, false)
+	if result.ResumeIndex == nil || *result.ResumeIndex != 1 {
+		t.Fatalf("resume = %v, want 1", result.ResumeIndex)
+	}
+	if result.PreservedLineBreak {
+		t.Fatal("the zero-width space is not a preserved break")
+	}
+}

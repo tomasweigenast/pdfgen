@@ -40,7 +40,13 @@ func splitTextBox(ctx *Context, box *boxes.TextBox, width float64, skip int, lin
 		result.Box = fragment
 	}
 	if split.ResumeIndex >= 0 {
-		between := text[split.Length:split.ResumeIndex]
+		// A lone space with word-spacing is laid out with a zero-width space
+		// after it, so the length of its line can exceed the offset where the
+		// next line starts.
+		var between string
+		if split.Length < split.ResumeIndex {
+			between = text[split.Length:split.ResumeIndex]
+		}
 		result.PreservedLineBreak = split.Length != split.ResumeIndex && strings.Trim(between, " ") != ""
 		resume := skip + split.ResumeIndex
 		result.ResumeIndex = &resume
