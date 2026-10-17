@@ -1,11 +1,118 @@
 package layout
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/tomasweigenast/pdfgen/internal/boxes"
 	"github.com/tomasweigenast/pdfgen/internal/css/props"
+	"github.com/tomasweigenast/pdfgen/internal/units"
 )
+
+// floatWidth sets the width of a float whose width is auto to the width that
+// fits its content, within min-width and max-width (CSS 2.1 §10.3.5).
+func floatWidth(ctx *Context, box, containing boxes.Box) {
+	b := box.Base()
+	withMinMaxWidth(b, func() {
+		// The limits can replace the width by a value, so auto is checked
+		// again every time.
+		if b.Width.Auto {
+			b.Width = units.F(shrinkToFit(ctx, box, containing.Base().Width.V))
+		}
+	})
+}
+
+// floatLayout sets the size of a floated box, lays out its content and puts
+// it at the highest place where it fits next to the floats before it
+// (CSS 2.1 §9.5.1). It returns the fragment and where the box resumes if it
+// did not fit on the page.
+func floatLayout(ctx *Context, box, containing boxes.Box, positioned *positionedBoxes, bottomSpace float64, skip ResumeAt) fragmentResult {
+	b := box.Base()
+	cb := containingBlockOf(containing)
+	direction := containing.Base().Style.Direction()
+	resolvePercentages(box, cb)
+
+	// The height of the containing block is only known once it is laid
+	// out; until then the content laid out so far stands for it.
+	if cb.Height.Auto {
+		cb.Height = units.F(containing.Base().PositionY - containing.ContentBoxY())
+	}
+	resolvePositionPercentages(box, cb)
+
+	for _, margin := range []*units.MaybeFloat{&b.MarginLeft, &b.MarginRight, &b.MarginTop, &b.MarginBottom} {
+		if margin.Auto {
+			*margin = units.F(0)
+		}
+	}
+
+	if clearance := getClearance(ctx, box, direction, 0); clearance != nil {
+		b.PositionY += *clearance
+	}
+
+	if replaced, ok := box.(*boxes.BlockReplacedBox); ok {
+		inlineReplacedBoxWidthHeight(&replaced.ReplacedFields, containingBlockOf(containing), direction)
+	} else if b.Width.Auto {
+		floatWidth(ctx, box, containing)
+	}
+
+	if b.IsTableWrapper {
+		ctx.unsupported("tables")
+		return fragmentResult{}
+	}
+
+	var resume ResumeAt
+	switch box.(type) {
+	case boxes.BlockContainer:
+		result := blockContainerLayout(ctx, box, containing, blockOptions{
+			BottomSpace: bottomSpace,
+			SkipStack:   skip,
+			PageIsEmpty: true,
+			Positioned:  positioned,
+		})
+		if result.Box == nil {
+			ctx.fail(fmt.Errorf("the layout of a float produced no box"))
+			return fragmentResult{}
+		}
+		box, resume = result.Box, result.ResumeAt
+	case boxes.FlexContainer:
+		ctx.unsupported("flex containers")
+		return fragmentResult{}
+	case boxes.GridContainer:
+		ctx.unsupported("grid containers")
+		return fragmentResult{}
+	}
+
+	findFloatPosition(ctx, box, containing)
+	ctx.addExcludedShape(box)
+	return fragmentResult{Box: box, ResumeAt: resume}
+}
+
+// findFloatPosition moves a float to its place: below the floats before it
+// unless it fits beside them, and against the side it floats to (CSS 2.1
+// §9.5.1, rules 4 to 9). The vertical position of the box already accounts
+// for the margins collapsed by its containing box (rule 4).
+func findFloatPosition(ctx *Context, box, containing boxes.Box) {
+	b := box.Base()
+	// Rules 5 and 6: a float is never higher than the floats before it.
+	if ctx.ExcludedShapes != nil && len(*ctx.ExcludedShapes) != 0 {
+		shapes := *ctx.ExcludedShapes
+		if highest := shapes[len(shapes)-1].Base().PositionY; b.PositionY < highest {
+			box.Translate(0, highest-b.PositionY, false)
+		}
+	}
+
+	// Rules 1 and 2.
+	x, y, available := avoidCollisions(ctx, box, containing, true)
+
+	// Rule 9: the vertical position is set, and the horizontal one is
+	// already the left edge for floats to the left.
+	direction := b.Style.Direction()
+	side := b.Style.Float()
+	if side == "right" || (direction == "ltr" && side == "inline-end") || (direction == "rtl" && side == "inline-start") {
+		x += available - box.MarginWidth()
+	}
+	box.Translate(x-b.PositionX, y-b.PositionY, false)
+}
 
 func floatSide(value, direction props.Keyword) props.Keyword {
 	switch value {

@@ -21,12 +21,6 @@ func iterLineBoxes(ctx *Context, box, containing boxes.Box, opts blockOptions, p
 	return func(func(lineResult) bool) {}
 }
 
-// floatLayout positions a floated box and lays out its contents.
-func floatLayout(ctx *Context, box, containing boxes.Box, positioned *positionedBoxes, bottomSpace float64, skip ResumeAt) fragmentResult {
-	ctx.unimplemented()
-	return fragmentResult{}
-}
-
 // absoluteLayout resolves an absolute placeholder against its containing block.
 func absoluteLayout(ctx *Context, placeholder *boxes.AbsolutePlaceholder, containing boxes.Box, fixed *[]*boxes.AbsolutePlaceholder, bottomSpace float64, skip ResumeAt) {
 	ctx.unimplemented()
