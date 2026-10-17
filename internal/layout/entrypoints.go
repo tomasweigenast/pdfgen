@@ -34,9 +34,9 @@ func blockContainerLayout(ctx *Context, box, containing boxes.Box, opts blockOpt
 }
 
 // floatLayout positions a floated box and lays out its contents.
-func floatLayout(ctx *Context, box, containing boxes.Box, positioned *positionedBoxes, bottomSpace float64, skip ResumeAt) boxes.Box {
+func floatLayout(ctx *Context, box, containing boxes.Box, positioned *positionedBoxes, bottomSpace float64, skip ResumeAt) fragmentResult {
 	ctx.unimplemented()
-	return nil
+	return fragmentResult{}
 }
 
 // absoluteLayout resolves an absolute placeholder against its containing block.
