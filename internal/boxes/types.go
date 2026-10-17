@@ -271,7 +271,7 @@ type PageBox struct {
 	FixedBoxes []Box
 	// CanvasBackground is the background of the canvas, taken from the root
 	// element, set by layout.
-	CanvasBackground any
+	CanvasBackground *Background
 }
 
 // Bleed returns the widths of the bleed area on each side.

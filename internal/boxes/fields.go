@@ -115,7 +115,7 @@ type BoxFields struct {
 
 	// Background is the resolved background of the box, set by layout and
 	// read by drawing; nil when there is nothing to paint.
-	Background any
+	Background *Background
 	// BorderImage and MaskBorderImage are the images of border-image-source
 	// and mask-border-source.
 	BorderImage, MaskBorderImage images.Image
