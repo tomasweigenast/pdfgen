@@ -99,3 +99,61 @@ func TestListsMarkerContent(t *testing.T) {
 		t.Errorf("content = %q, want b", got)
 	}
 }
+
+func TestListsPageBreak(t *testing.T) {
+	noLogs(t)
+	pages := paginate(t, `
+      <style>
+        @page { size: 300px 100px }
+        ul { font-size: 30px; font-family: testfont; margin: 0 }
+      </style>
+      <ul>
+        <li>a</li>
+        <li>a</li>
+        <li>a</li>
+        <li>a</li>
+      </ul>
+    `)
+	if len(pages) != 2 {
+		t.Fatalf("got %d pages, want 2", len(pages))
+	}
+	for i, want := range []int{3, 1} {
+		_, body := pageBody(t, pages[i])
+		items := expectChildren(t, expectChildren(t, body, 1)[0], want)
+		for _, li := range items {
+			// The marker and the content.
+			expectChildren(t, li, 2)
+		}
+	}
+}
+
+func TestListsPageBreakWithMargins(t *testing.T) {
+	noLogs(t)
+	pages := paginate(t, `
+      <style>
+        @page { size: 300px 100px }
+        ul { font-size: 30px; font-family: testfont; margin: 0 }
+        p { margin: 10px 0 }
+      </style>
+      <ul>
+        <li><p>a</p></li>
+        <li><p>a</p></li>
+        <li><p>a</p></li>
+        <li><p>a</p></li>
+      </ul>
+    `)
+	if len(pages) != 2 {
+		t.Fatalf("got %d pages, want 2", len(pages))
+	}
+	for _, page := range pages {
+		_, body := pageBody(t, page)
+		for _, li := range expectChildren(t, expectChildren(t, body, 1)[0], 2) {
+			parts := expectChildren(t, li, 2)
+			marker, content := parts[0], parts[1]
+			// The marker is level with the first line of the paragraph.
+			if got, want := marker.Base().PositionY, expectChildren(t, content, 1)[0].Base().PositionY; got != want {
+				t.Errorf("marker at y = %g, paragraph at y = %g", got, want)
+			}
+		}
+	}
+}

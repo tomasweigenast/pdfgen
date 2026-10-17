@@ -2,8 +2,10 @@ package layout
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/tomasweigenast/pdfgen/internal/boxes"
@@ -183,5 +185,93 @@ func TestIntrinsicMathBoundsKeepOrderedNaNBehavior(t *testing.T) {
 	box.Base().Style.Set(props.PropMaxWidth, props.Px(math.NaN()))
 	if got := preferredMinMax(box, 10); got != 10 {
 		t.Fatalf("unordered maximum = %g, want 10", got)
+	}
+}
+
+func TestShrinkToFitFloatingPointError(t *testing.T) {
+	for marginLeft := 1; marginLeft < 10; marginLeft++ {
+		for fontSize := 1; fontSize < 10; fontSize++ {
+			t.Run(fmt.Sprintf("margin 0.%din font 0.%dem", marginLeft, fontSize), func(t *testing.T) {
+				noLogs(t)
+				page := onlyPage(t, paginate(t, fmt.Sprintf(`
+      <style>
+        @page { size: 100000px 100px }
+        p { float: left; margin-left: 0.%din; font-size: 0.%dem;
+            font-family: testfont }
+      </style>
+      <p>this parrot is dead</p>
+    `, marginLeft, fontSize)))
+				_, body := pageBody(t, page)
+				p := expectChildren(t, body, 1)[0]
+				expectChildren(t, p, 1)
+			})
+		}
+	}
+}
+
+func TestShrinkToFitKeepsTheLastWordOnItsLine(t *testing.T) {
+	for _, fontSize := range []int{1, 5, 10, 50, 100, 1000, 10000} {
+		t.Run(fmt.Sprint(fontSize), func(t *testing.T) {
+			noLogs(t)
+			for letters := 1; ; letters++ {
+				page := onlyPage(t, paginate(t, fmt.Sprintf(`
+          <style>
+            @page { size: %d0pt %d0px }
+            p { font-size: %dpt; font-family: testfont }
+          </style>
+          <p>mmm <b>%s a</b></p>
+        `, fontSize, fontSize, fontSize, strings.Repeat("i", letters))))
+				_, body := pageBody(t, page)
+				p := expectChildren(t, body, 1)[0]
+				if n := len(boxes.ChildrenOf(p)); n != 1 && n != 2 {
+					t.Fatalf("paragraph has %d lines, want 1 or 2", n)
+				}
+				line := boxes.ChildrenOf(p)[0]
+				text := textAt(t, expectChildren(t, line, 2)[1], 0)
+				if text == "" {
+					t.Fatalf("the bold text is empty with %d letters", letters)
+				}
+				if strings.HasSuffix(text, "i") {
+					break
+				}
+			}
+		})
+	}
+}
+
+func TestPreferredInlineZeroWidthInlineBlock(t *testing.T) {
+	noLogs(t)
+	page := onlyPage(t, paginate(t, `
+      <style>
+        div { font: 2px testfont; float: left }
+      </style>
+      <div><span style="display: inline-block"></span> a</div>
+    `))
+	_, body := pageBody(t, page)
+	div := expectChildren(t, body, 1)[0].Base()
+	if div.Width.V != 4 || div.Height.V != 2 {
+		t.Errorf("div is %g × %g, want 4 × 2", div.Width.V, div.Height.V)
+	}
+}
+
+func TestPreferredInlineTrailingSpacesInFloat(t *testing.T) {
+	for _, tt := range []struct{ name, contents string }{
+		{"nested trailing spaces", `<span>a </span> `},
+		{"trailing space in nested", `<span style="display: inline-block"></span><span><span>a</span> </span>`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			noLogs(t)
+			page := onlyPage(t, paginate(t, `
+      <style>
+        div { font: 2px testfont; float: left }
+      </style>
+      <div>`+tt.contents+`</div>
+    `))
+			_, body := pageBody(t, page)
+			div := expectChildren(t, body, 1)[0].Base()
+			if div.Width.V != 2 || div.Height.V != 2 {
+				t.Errorf("div is %g × %g, want 2 × 2", div.Width.V, div.Height.V)
+			}
+		})
 	}
 }
