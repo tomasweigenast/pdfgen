@@ -99,6 +99,9 @@ type BoxFields struct {
 	PaddingTop, PaddingRight, PaddingBottom, PaddingLeft float64
 	BorderTopWidth, BorderRightWidth                     float64
 	BorderBottomWidth, BorderLeftWidth                   float64
+	// CollapsedBordersResolved distinguishes resolved zero widths from borders
+	// whose used widths still need to be read from the style.
+	CollapsedBordersResolved bool
 
 	BorderTopLeftRadius, BorderTopRightRadius       Radius
 	BorderBottomRightRadius, BorderBottomLeftRadius Radius

@@ -140,6 +140,7 @@ func clampIndex(i, n int) int {
 
 func setBorderWidths(b Box, top, right, bottom, left float64) {
 	f := b.Base()
+	f.CollapsedBordersResolved = true
 	f.BorderTopWidth, f.BorderRightWidth = top, right
 	f.BorderBottomWidth, f.BorderLeftWidth = bottom, left
 }

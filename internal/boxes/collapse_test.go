@@ -60,6 +60,11 @@ func TestCollapsedBordersKeepTheWidest(t *testing.T) {
 	if table.BorderLeftWidth != 3 || table.BorderRightWidth != 1 || table.BorderTopWidth != 3 {
 		t.Errorf("table borders: left %v right %v top %v", table.BorderLeftWidth, table.BorderRightWidth, table.BorderTopWidth)
 	}
+	for box := range boxes.Descendants(table, false) {
+		if !box.Base().CollapsedBordersResolved {
+			t.Errorf("%s has no resolved border widths", box)
+		}
+	}
 	first := table.Children[0].(*boxes.TableRowGroupBox).Children[0].(*boxes.TableRowBox).Children[0].Base()
 	if first.BorderRightWidth != 3 || first.BorderBottomWidth != 3 {
 		t.Errorf("first cell borders: right %v bottom %v", first.BorderRightWidth, first.BorderBottomWidth)
@@ -71,6 +76,9 @@ func TestCollapsedBordersOfEmptyTables(t *testing.T) {
 	table := collapsedTable(s)
 	if grid := boxes.CollapseTableBorders(table, 0, 0); grid == nil || len(grid.Vertical) != 0 || len(grid.Horizontal) != 0 {
 		t.Errorf("grid = %+v, want empty", grid)
+	}
+	if table.CollapsedBordersResolved {
+		t.Error("empty table was marked as having resolved borders")
 	}
 }
 
