@@ -57,6 +57,10 @@ type FontConfiguration struct {
 	rules     map[[16]byte]bool
 	systemSet map[fontscan.Location]*Face
 	instances map[string]*Face
+
+	// metrics and ratios keep the measures of Strut and CharacterRatio.
+	metrics map[string]Metrics
+	ratios  map[string]float64
 }
 
 // registered is a face declared by an @font-face rule.
@@ -74,6 +78,8 @@ func NewFontConfiguration(opts ...Option) *FontConfiguration {
 		rules:     map[[16]byte]bool{},
 		systemSet: map[fontscan.Location]*Face{},
 		instances: map[string]*Face{},
+		metrics:   map[string]Metrics{},
+		ratios:    map[string]float64{},
 	}
 	for _, o := range opts {
 		o(fc)
@@ -175,6 +181,10 @@ func (fc *FontConfiguration) register(face *Face, rule FontFaceRule) {
 	}
 	key := font.NormalizeFamily(rule.Family)
 	fc.faces[key] = append(fc.faces[key], &registered{face: face, rule: rule, aspect: a})
+
+	// A new face can take over the family of measures already made.
+	clear(fc.metrics)
+	clear(fc.ratios)
 }
 
 // loadLocal returns the data of an installed font whose full name or
@@ -367,22 +377,4 @@ func (fc *FontConfiguration) openSystem(loc fontscan.Location, gt *font.Face) *F
 	}
 	logging.Warnf("Cannot read font file %q: %v", loc.File, err)
 	return &Face{ID: loc.File, GoText: gt, Family: gt.Describe().Family}
-}
-
-// CharacterRatio returns the size of a font-relative unit ("ex", "cap",
-// "ic" or "ch") as a fraction of the font size for the font of a
-// description. The description's size is ignored: the measure is taken at a
-// large size, with the character searched through the families like any
-// other, so a font without it is replaced by a fallback font.
-func (fc *FontConfiguration) CharacterRatio(d Description, lang string, features []Feature, unit string) float64 {
-	r, ok := RatioCharacter(unit)
-	if !ok {
-		return 0
-	}
-	d.Size = ratioSize
-	face := fc.Query(d, lang, r)
-	if face == nil {
-		return 0.5
-	}
-	return face.CharacterRatio(unit, lang, features)
 }

@@ -57,15 +57,7 @@ type Style struct {
 }
 
 // LineHeight is the computed value of line-height.
-type LineHeight struct {
-	// Normal is true for the normal keyword, which uses the metrics of the
-	// font.
-	Normal bool
-	// Number is true when Value multiplies the font size; otherwise Value
-	// is a length in px.
-	Number bool
-	Value  float64
-}
+type LineHeight = fonts.LineHeight
 
 // LengthPercentage is a length in px or, when Percent is set, a percentage.
 type LengthPercentage struct {
@@ -166,3 +158,13 @@ func (s *Style) shapingLanguage() string {
 }
 
 func (s *Style) features() []fonts.Feature { return fonts.Features(s.Features) }
+
+// fontSpec returns what selects and shapes the font of the style.
+func (s *Style) fontSpec() fonts.Spec {
+	return fonts.Spec{
+		Font:             s.Font,
+		Features:         s.Features,
+		Lang:             s.Lang,
+		LanguageOverride: s.LanguageOverride,
+	}
+}

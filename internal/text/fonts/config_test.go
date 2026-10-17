@@ -514,13 +514,13 @@ func TestLocalSourceRequiresExactName(t *testing.T) {
 func TestCharacterRatioThroughConfiguration(t *testing.T) {
 	fc := newTestConfiguration(t)
 	addTestFont(t, fc, FontFaceRule{Family: "testfont"})
-	d := family("testfont")
+	spec := Spec{Font: family("testfont")}
 	for unit, want := range map[string]float64{"ex": 0.7998, "ch": 1, "cap": 1, "ic": 2} {
-		if got := fc.CharacterRatio(d, "", nil, unit); got != want {
+		if got := fc.CharacterRatio(spec, unit); got != want {
 			t.Errorf("CharacterRatio(%q) = %v, want %v", unit, got, want)
 		}
 	}
-	if got := fc.CharacterRatio(Description{Families: []string{"none"}}, "", nil, "ex"); got != 0.5 {
+	if got := fc.CharacterRatio(Spec{Font: Description{Families: []string{"none"}}}, "ex"); got != 0.5 {
 		t.Errorf("without fonts: %v, want 0.5", got)
 	}
 }
@@ -530,8 +530,8 @@ func TestCharacterRatioThroughConfiguration(t *testing.T) {
 func TestCharacterRatioUsesFallbackFontForMissingCharacter(t *testing.T) {
 	fc := withSystemFonts(t)
 	addTestFont(t, fc, FontFaceRule{Family: "testfont", UnicodeRange: []Range{{'A', 'A'}}})
-	d := Description{Families: []string{"testfont", "serif"}, Size: 16}
-	got := fc.CharacterRatio(d, "", nil, "ex")
+	spec := Spec{Font: Description{Families: []string{"testfont", "serif"}, Size: 16}}
+	got := fc.CharacterRatio(spec, "ex")
 	if got == 0.7998 || got <= 0 || got >= 1 {
 		t.Errorf("ex = %v, want the ratio of an installed font", got)
 	}
