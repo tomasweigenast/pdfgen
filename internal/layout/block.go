@@ -59,7 +59,7 @@ func isBlockParallel(box boxes.Box) bool {
 
 // addBreakValues collects the break-before or break-after values that
 // meet at the edge of a box: the box's own and those of its first or last
-// descendants in the flow (CSS Fragmentation 3 §3.1).
+// descendants in the flow (CSS Fragmentation 3, breaking between boxes).
 func addBreakValues(box boxes.Box, side string) []props.Keyword {
 	var values []props.Keyword
 	for box != nil && isBlockParallel(box) && (box.IsInNormalFlow() || box.IsFloated()) {
@@ -88,7 +88,7 @@ func addBreakValues(box boxes.Box, side string) []props.Keyword {
 // the break-after values of the first and the break-before values of the
 // second compete, forced breaks beat avoid, which beats auto, and among
 // left, right, recto and verso the later value wins (CSS Fragmentation 3
-// §3.1). A nil sibling takes no part.
+// controlling breaks). A nil sibling takes no part.
 func blockLevelPageBreak(before, after boxes.Box) props.Keyword {
 	result := props.Keyword("auto")
 	values := append(addBreakValues(before, "after"), addBreakValues(after, "before")...)
@@ -117,7 +117,7 @@ func breakWins(value, current props.Keyword) bool {
 
 // blockLevelPageName returns the name of the page that starts between two
 // siblings when it differs from the one that ends, or nil when they agree
-// (CSS Paged Media 3 §7.3.2).
+// (CSS Paged Media 3, named pages).
 func blockLevelPageName(before, after boxes.Box) *string {
 	_, beforePage := before.PageValues()
 	afterPage, _ := after.PageValues()
@@ -158,7 +158,8 @@ func findLastInFlowChild(children []boxes.Box) boxes.Box {
 }
 
 // findLastClassABreakPointChild returns the last child that can be one of
-// the siblings around a break between blocks (CSS Fragmentation 4 §3.1).
+// the siblings around a break between blocks (CSS Fragmentation 4, class A
+// break points).
 func findLastClassABreakPointChild(children []boxes.Box) boxes.Box {
 	for i := len(children) - 1; i >= 0; i-- {
 		if children[i].IsInNormalFlow() || children[i].IsFloated() {
@@ -384,9 +385,9 @@ func blockLevelLayout(ctx *Context, box, containing boxes.Box, opts blockOptions
 
 		if ctx.CurrentPage > 1 && opts.PageIsEmpty {
 			// An unforced break before or after a block-level box truncates
-			// the margins adjoining it (CSS Fragmentation 3 §5.2). This only
-			// finds the margins when the parent separates them from its
-			// ancestors, and not when an ancestor does.
+			// the margins adjoining it (CSS Fragmentation 3, adjoining margins
+			// at breaks). This only finds the margins when the parent separates
+			// them from its ancestors, and not when an ancestor does.
 			collapseWithPage := containing.Base().IsForRootElement || !opts.AdjoiningMargins.isEmpty()
 			if collapseWithPage {
 				switch b.Style.MarginBreak() {
@@ -673,8 +674,7 @@ func blockContainerLayout(ctx *Context, box, _ boxes.Box, opts blockOptions) Blo
 			}
 
 		case child.Kind() == boxes.KindLine:
-			var line lineboxResult
-			line = flow.lineboxLayout(index, child, &newChildren, adjoining, positionY, skipStack,
+			line := flow.lineboxLayout(index, child, &newChildren, adjoining, positionY, skipStack,
 				firstLetter, firstLine, drawBottomDecoration, maxLines)
 			abort, stop, resumeAt, positionY = line.abort, line.stop, line.resumeAt, line.positionY
 			newFootnotes, maxLines = line.newFootnotes, line.maxLines
@@ -813,7 +813,7 @@ func blockContainerLayout(ctx *Context, box, _ boxes.Box, opts blockOptions) Blo
 		nb.Height = units.F(firstMax(firstMin(nb.Height.V, nb.MaxHeight.V), nb.MinHeight.V))
 	case !math.IsInf(bottomSpace, -1) && !nb.IsColumn:
 		// The box fills the blank space at the bottom of the page
-		// (CSS Fragmentation 3 §4.1).
+		// (CSS Fragmentation 3, splitting boxes).
 		height := ctx.PageBottom - bottomSpace - nb.PositionY - (newBox.MarginHeight() - nb.Height.V)
 		if height > nb.Height.V {
 			nb.Height = units.F(height)
@@ -853,12 +853,6 @@ func setBlockEllipsis(children []boxes.Box, ellipsis props.KeywordOrString) {
 		}
 		children = parent.ParentBase().Children
 	}
-}
-
-// overflows reports whether a position is below a bottom, allowing for the
-// relative error that sums of CSS lengths accumulate (1e-9, as in PEP 485).
-func overflows(bottom, positionY float64) bool {
-	return positionY > bottom*(1+1e-9)
 }
 
 // outOfFlowLayout lays out a child that is not in the normal flow: it leaves
@@ -965,7 +959,7 @@ type lineboxResult struct {
 func (f *containerFlow) lineboxLayout(index int, child boxes.Box, newChildren *[]boxes.Box, adjoining *marginList, positionY float64, skipStack ResumeAt, firstLetter, firstLine *computed.Style, drawBottomDecoration bool, maxLines *int) lineboxResult {
 	ctx, box := f.ctx, f.box
 	b := box.Base()
-	result := lineboxResult{maxLines: maxLines}
+	result := lineboxResult{maxLines: maxLines, positionY: positionY}
 
 	if len(boxes.ChildrenOf(box)) != 1 {
 		ctx.fail(fmt.Errorf("line box with siblings before layout"))

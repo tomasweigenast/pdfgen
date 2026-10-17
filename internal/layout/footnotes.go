@@ -10,7 +10,7 @@ import (
 )
 
 // layoutFootnote places a footnote in the footnote area of the current page
-// and reports whether the area overflows (CSS GCPM Level 3 §2.5).
+// and reports whether the area overflows.
 func (ctx *Context) layoutFootnote(footnote boxes.Box) bool {
 	if i := slices.Index(ctx.Footnotes, footnote); i >= 0 {
 		ctx.Footnotes = slices.Delete(ctx.Footnotes, i, i+1)

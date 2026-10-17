@@ -79,7 +79,7 @@ func (ctx *Context) removeBrokenOutOfFlow(fragment boxes.Box) {
 
 // addRunningElement stores a running element or a note for the margin
 // boxes of the current page. The first time a note is met it receives the
-// anchors that link its call and its callback (CSS GCPM Level 3 §3).
+// anchors that link its call and its callback.
 func (ctx *Context) addRunningElement(box boxes.Box) {
 	b := box.Base()
 	name := b.Style.Position().Name

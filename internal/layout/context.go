@@ -131,7 +131,13 @@ func (ctx *Context) FinishBFC(root boxes.Box) {
 // OverflowsPage compares a position to the available page bottom, allowing
 // the relative rounding error accumulated by sums of CSS lengths.
 func (ctx *Context) OverflowsPage(bottomSpace, positionY float64) bool {
-	return positionY > (ctx.PageBottom-bottomSpace)*(1+1e-9)
+	return overflows(ctx.PageBottom-bottomSpace, positionY)
+}
+
+// overflows reports whether a position is below a bottom, allowing for the
+// relative error that sums of CSS lengths accumulate.
+func overflows(bottom, positionY float64) bool {
+	return positionY > bottom*(1+1e-9)
 }
 
 // StringSetFor selects the named strings used by a page margin box.
