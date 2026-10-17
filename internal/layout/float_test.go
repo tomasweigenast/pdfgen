@@ -1056,3 +1056,22 @@ func TestLogicalFloatsFollowTheDirection(t *testing.T) {
 		})
 	}
 }
+
+func TestClearanceOfTheFirstChildMovesItBelowFloatsOutsideItsParent(t *testing.T) {
+	noLogs(t)
+	page := onlyPage(t, paginate(t, `
+      <style>div, p { width: 20px; margin: 0 }</style>
+      <div style="float: left; height: 50px"></div>
+      <section><p style="clear: left; margin-top: 10px; height: 5px"></p></section>
+    `))
+	_, body := pageBody(t, page)
+	children := expectChildren(t, body, 2)
+	section := children[1]
+	p := expectChildren(t, section, 1)[0]
+	if got := p.BorderBoxY(); got != 50 {
+		t.Errorf("paragraph border box at y = %g, want 50", got)
+	}
+	if section.Base().PositionY != 0 || section.Base().Height.V != 55 {
+		t.Errorf("section at y = %g with height %g, want 0 and 55", section.Base().PositionY, section.Base().Height.V)
+	}
+}
