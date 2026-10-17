@@ -27,13 +27,17 @@ type Context struct {
 	CurrentPage       int
 	Footnotes         []boxes.Box
 	ReportedFootnotes []boxes.Box
-	FootnoteArea      *boxes.FootnoteAreaBox
-	PageBottom        float64
-	Builder           *boxes.Builder
-	Text              *linebreak.Context
-	PageMaker         []PageMaker
-	ForcedBreak       bool
-	InColumn          bool
+	// CurrentPageFootnotes are the footnotes laid out on the current page.
+	CurrentPageFootnotes []boxes.Box
+	// RenderedNotes are the notes already laid out on previous pages.
+	RenderedNotes []boxes.Box
+	FootnoteArea  *boxes.FootnoteAreaBox
+	PageBottom    float64
+	Builder       *boxes.Builder
+	Text          *linebreak.Context
+	PageMaker     []PageMaker
+	ForcedBreak   bool
+	InColumn      bool
 
 	bfcStack        []*bfcFrame
 	bfcFrames       map[boxes.Box]*bfcFrame
