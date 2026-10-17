@@ -29,6 +29,13 @@ type SplitResult struct {
 // in 32-bit 1/1024 px units and are treated as unconstrained.
 const maxWrapWidth = 1 << 21
 
+// NewLayout returns a layout of text that wraps at maxWidth px, or does not
+// wrap when maxWidth is nil. The justification spacing is added to
+// word-spacing when the layout is drawn, see Reactivate.
+func NewLayout(ctx *Context, text string, style *Style, maxWidth *float64, justificationSpacing float64) *Layout {
+	return createLayout(ctx, text, style, maxWidth, justificationSpacing)
+}
+
 // createLayout returns a layout of text wrapping at maxWidth.
 func createLayout(ctx *Context, text string, style *Style, maxWidth *float64, justificationSpacing float64) *Layout {
 	l := newLayout(ctx, style, justificationSpacing, maxWidth)

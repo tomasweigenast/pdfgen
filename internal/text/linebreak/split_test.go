@@ -441,6 +441,22 @@ func TestJustificationSpacingIsAddedWhenReactivated(t *testing.T) {
 	}
 }
 
+func TestNewLayoutKeepsTextAndJustificationSpacing(t *testing.T) {
+	ctx := newTestContext(t)
+	style := testStyle()
+	l := NewLayout(ctx, "a b c", style, nil, 3)
+	if l.Text != "a b c" || l.JustificationSpacing != 3 {
+		t.Fatalf("layout = %q with spacing %v", l.Text, l.JustificationSpacing)
+	}
+	if w, _ := LineSize(l.FirstLine(), style); w != 80 {
+		t.Errorf("width %v, want 80 before justification", w)
+	}
+	l.Reactivate(style)
+	if w, _ := LineSize(l.FirstLine(), style); w != 86 {
+		t.Errorf("justified width %v, want 86", w)
+	}
+}
+
 // splitLines breaks text into lines of at most maxWidth px, starting a
 // new line where the previous one ends, and returns the text of each line.
 func splitLines(t testing.TB, ctx *Context, text string, style *Style, maxWidth float64) []string {
