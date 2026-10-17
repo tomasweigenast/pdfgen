@@ -23,6 +23,17 @@ import (
 // page. Tests that need those use the complete page layout instead.
 func paginate(t testing.TB, source string) []*boxes.PageBox {
 	t.Helper()
+	pages, err := paginateWithError(t, source)
+	if err != nil {
+		t.Fatalf("layout: %v", err)
+	}
+	return pages
+}
+
+// paginateWithError is paginate for documents whose layout can fail: it
+// returns the first fatal error of the layout.
+func paginateWithError(t testing.TB, source string) ([]*boxes.PageBox, error) {
+	t.Helper()
 	doc := csstest.Parse(t, source)
 	env := csstest.Environment()
 	collector := targets.NewCollector()
@@ -57,7 +68,7 @@ func paginate(t testing.TB, source string) []*boxes.PageBox {
 		ctx.ForcedBreak = next.Break != "any" || name != ""
 		page, nextResume, nextPage := fixturePage(t, ctx, root, pageType, number, resume)
 		if err := ctx.Err(); err != nil {
-			t.Fatalf("layout page %d: %v", number, err)
+			return nil, err
 		}
 		pages = append(pages, page)
 		if nextResume == nil {
@@ -77,7 +88,7 @@ func paginate(t testing.TB, source string) []*boxes.PageBox {
 		children = append(children, fixtureFixedBoxes(ctx, pages[i+1:], page)...)
 		rootBox.(boxes.Parent).ParentBase().Children = children
 	}
-	return pages
+	return pages, nil
 }
 
 // fixturePage lays out one page of the document.
@@ -152,7 +163,11 @@ func fixturePage(t testing.TB, ctx *Context, root boxes.Box, pageType cascade.Pa
 	})
 	rootBox := result.Box
 	if rootBox == nil {
-		t.Fatalf("page %d: the root box did not fit", number)
+		if ctx.Err() == nil {
+			t.Fatalf("page %d: the root box did not fit", number)
+		}
+		ctx.FinishBFC(nil)
+		return page, nil, PageBreak{}
 	}
 	rootBox.(boxes.Parent).ParentBase().Children = append(outOfFlow, boxes.ChildrenOf(rootBox)...)
 

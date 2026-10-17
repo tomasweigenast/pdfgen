@@ -2,6 +2,7 @@ package layout
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/tomasweigenast/pdfgen/internal/boxes"
@@ -475,5 +476,564 @@ func TestBlockHeightsOfParagraphs(t *testing.T) {
 	}
 	if want := []float64{90, 90 * 3, 20, 120, 20, 120, 90, 90}; fmt.Sprint(heights) != fmt.Sprint(want) {
 		t.Fatalf("heights = %v, want %v", heights, want)
+	}
+}
+
+func TestBlockHeightsOfImages(t *testing.T) {
+	tests := []struct {
+		name   string
+		style  string
+		want   []float64
+		bodyCh string
+	}{
+		{
+			name:   "body with a height",
+			style:  "body { height: 200px; font-size: 0 }",
+			want:   []float64{40, 20, 20, 20, 20, 20},
+			bodyCh: "",
+		},
+		{
+			// Percentages of the height are ignored when body has none.
+			name:  "body without a height",
+			style: "body { font-size: 0 }",
+			want:  []float64{40, 40, 20, 40, 20, 0},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			noLogs(t)
+			page := onlyPage(t, paginate(t, fmt.Sprintf(`
+      <style>
+        %s
+      </style>
+      <div>
+        <img src=pattern.png style="height: 40px">
+      </div>
+      <div style="height: 10%%">
+        <img src=pattern.png style="height: 40px">
+      </div>
+      <div style="max-height: 20px">
+        <img src=pattern.png style="height: 40px">
+      </div>
+      <div style="max-height: 10%%">
+        <img src=pattern.png style="height: 40px">
+      </div>
+      <div style="min-height: 20px"></div>
+      <div style="min-height: 10%%"></div>
+    `, tt.style)))
+			_, body := pageBody(t, page)
+			var heights []float64
+			for _, div := range boxes.ChildrenOf(body) {
+				heights = append(heights, div.Base().Height.V)
+			}
+			if fmt.Sprint(heights) != fmt.Sprint(tt.want) {
+				t.Fatalf("heights = %v, want %v", heights, tt.want)
+			}
+		})
+	}
+}
+
+var (
+	collapsingMargins = []struct {
+		first, second string
+		want          float64
+	}{
+		{"10px", "15px", 15}, // not 25
+		// The maximum of the absolute values of the negative adjoining
+		// margins is deducted from the maximum of the positive ones.
+		{"-10px", "15px", 5},
+		{"10px", "-15px", -5},
+		{"-10px", "-15px", -15},
+		{"10px", "auto", 10}, // auto is 0
+	}
+	notCollapsingMargins = []struct {
+		first, second string
+		want          float64
+	}{
+		{"10px", "15px", 25},
+		{"-10px", "15px", 5},
+		{"10px", "-15px", -5},
+		{"-10px", "-15px", -25},
+		{"10px", "auto", 10}, // auto is 0
+	}
+)
+
+// verticalSpace lays out a document where two paragraphs of 20px have the
+// given margins and returns the boxes of its body.
+func verticalSpace(t *testing.T, style, markup string) []boxes.Box {
+	t.Helper()
+	page := onlyPage(t, paginate(t, `
+      <style>
+        p { font: 20px/1 serif } /* block height == 20px */
+        `+style+`
+      </style>
+      `+markup))
+	_, body := pageBody(t, page)
+	return boxes.ChildrenOf(body)
+}
+
+// gapBetween returns the distance from the bottom of the content of a box to
+// the top of the content of another.
+func gapBetween(first, second boxes.Box) float64 {
+	return second.ContentBoxY() - (first.ContentBoxY() + first.Base().Height.V)
+}
+
+func TestVerticalSpaceBetweenSiblings(t *testing.T) {
+	for _, tt := range collapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("#p1 { margin-bottom: %s } #p2 { margin-top: %s }", tt.first, tt.second),
+				"<p id=p1>Lorem ipsum\n<p id=p2>dolor sit amet")
+			p1, p2 := children[0], children[1]
+			if got := gapBetween(p1, p2); got != tt.want {
+				t.Fatalf("gap = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerticalSpaceWhenTheFirstIsNested(t *testing.T) {
+	for _, tt := range collapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("#p1 { margin-bottom: %s } #p2 { margin-top: %s }", tt.first, tt.second),
+				"<div>\n<p id=p1>Lorem ipsum\n</div>\n<p id=p2>dolor sit amet")
+			div, p2 := children[0], children[1]
+			p1 := expectChildren(t, div, 1)[0]
+			if got := gapBetween(p1, p2); got != tt.want {
+				t.Fatalf("gap = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerticalSpaceWhenTheSecondIsNested(t *testing.T) {
+	for _, tt := range collapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("#p1 { margin-bottom: %s } #p2 { margin-top: %s }", tt.first, tt.second),
+				"<p id=p1>Lorem ipsum\n<div>\n<p id=p2>dolor sit amet\n</div>")
+			p1, div := children[0], children[1]
+			p2 := expectChildren(t, div, 1)[0]
+			if got := gapBetween(p1, p2); got != tt.want {
+				t.Fatalf("gap = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerticalSpaceWhenTheSecondIsDoublyNested(t *testing.T) {
+	for _, tt := range collapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("#p1 { margin-bottom: %s } #p2 { margin-top: %s }", tt.first, tt.second),
+				"<p id=p1>Lorem ipsum\n<div>\n<div>\n<p id=p2>dolor sit amet\n</div>\n</div>")
+			p1, div1 := children[0], children[1]
+			p2 := expectChildren(t, expectChildren(t, div1, 1)[0], 1)[0]
+			if got := gapBetween(p1, p2); got != tt.want {
+				t.Fatalf("gap = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerticalSpaceCollapsesWithChildren(t *testing.T) {
+	for _, tt := range collapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("#div1 { margin-top: %s } #div2 { margin-top: %s }", tt.first, tt.second),
+				"<p>Lorem ipsum\n<div id=div1>\n<div id=div2>\n<p id=p2>dolor sit amet\n</div>\n</div>")
+			p1, div1 := children[0], children[1]
+			div2 := expectChildren(t, div1, 1)[0]
+			p2 := expectChildren(t, div2, 1)[0]
+			// The parent and the child share their edge.
+			if div1.BorderBoxY() != p2.BorderBoxY() || div2.BorderBoxY() != p2.BorderBoxY() {
+				t.Errorf("border box tops: div1 %g, div2 %g, p2 %g", div1.BorderBoxY(), div2.BorderBoxY(), p2.BorderBoxY())
+			}
+			if got := gapBetween(p1, p2); got != tt.want {
+				t.Fatalf("gap = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerticalSpaceDoesNotCollapseWithChildrenOfFormattingContext(t *testing.T) {
+	for _, tt := range notCollapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("#div1 { margin-top: %s; overflow: hidden } #div2 { margin-top: %s }", tt.first, tt.second),
+				"<p>Lorem ipsum\n<div id=div1>\n<div id=div2>\n<p id=p2>dolor sit amet\n</div>\n</div>")
+			p1, div1 := children[0], children[1]
+			p2 := expectChildren(t, expectChildren(t, div1, 1)[0], 1)[0]
+			if got := gapBetween(p1, p2); got != tt.want {
+				t.Fatalf("gap = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerticalSpaceCollapsesThroughAnEmptyDiv(t *testing.T) {
+	for _, tt := range collapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("#p1 { margin-bottom: %[1]s } #p2 { margin-top: %[2]s } div { margin-bottom: %[1]s; margin-top: %[2]s }", tt.first, tt.second),
+				"<p id=p1>Lorem ipsum\n<div></div>\n<p id=p2>dolor sit amet")
+			p1, p2 := children[0], children[2]
+			if got := gapBetween(p1, p2); got != tt.want {
+				t.Fatalf("gap = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerticalSpaceOfTheRootElementDoesNotCollapse(t *testing.T) {
+	for _, tt := range notCollapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("html { margin-top: %s } body { margin-top: %s }", tt.first, tt.second),
+				"<p>Lorem ipsum")
+			// The space is counted from the top of the page.
+			if got := children[0].ContentBoxY(); got != tt.want {
+				t.Fatalf("top of the paragraph = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVerticalSpaceOfBodyCollapses(t *testing.T) {
+	for _, tt := range collapsingMargins {
+		t.Run(tt.first+"/"+tt.second, func(t *testing.T) {
+			children := verticalSpace(t,
+				fmt.Sprintf("body { margin-top: %s } div { margin-top: %s }", tt.first, tt.second),
+				"<div>\n<p>Lorem ipsum")
+			p1 := expectChildren(t, children[0], 1)[0]
+			// The space is counted from the top of the page.
+			if got := p1.ContentBoxY(); got != tt.want {
+				t.Fatalf("top of the paragraph = %g, want %g", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBoxDecorationBreakCloneBottomPadding(t *testing.T) {
+	noLogs(t)
+	pages := paginate(t, `
+      <style>
+        @page { size: 80px; margin: 0 }
+        div { height: 20px }
+        article { padding: 12px; box-decoration-break: clone }
+      </style>
+      <article>
+        <div>a</div>
+        <div>b</div>
+        <div>c</div>
+      </article>`)
+	if len(pages) != 2 {
+		t.Fatalf("got %d pages, want 2", len(pages))
+	}
+	_, body := pageBody(t, pages[0])
+	article := expectChildren(t, body, 1)[0]
+	if got := article.Base().Height.V; got != 80-2*12 {
+		t.Errorf("page 1 article height = %g, want %d", got, 80-2*12)
+	}
+	divs := expectChildren(t, article, 2)
+	if divs[0].Base().PositionY != 12 || divs[1].Base().PositionY != 12+20 {
+		t.Errorf("page 1 divs at y = %g, %g; want 12, 32", divs[0].Base().PositionY, divs[1].Base().PositionY)
+	}
+
+	_, body = pageBody(t, pages[1])
+	article = expectChildren(t, body, 1)[0]
+	if got := article.Base().Height.V; got != 20 {
+		t.Errorf("page 2 article height = %g, want 20", got)
+	}
+	if div := expectChildren(t, article, 1)[0]; div.Base().PositionY != 12 {
+		t.Errorf("page 2 div at y = %g, want 12", div.Base().PositionY)
+	}
+}
+
+func TestBoxDecorationBreakSliceBottomPadding(t *testing.T) {
+	t.Skip("not supported: a block whose bottom padding crosses the page is not laid out again with room for it")
+	// The last div fits in the first page, but not the padding of the
+	// article. As it is impossible to break between a parent and its last
+	// child, the last child goes to the next page.
+	noLogs(t)
+	pages := paginate(t, `
+      <style>
+        @page { size: 80px; margin: 0 }
+        div { height: 20px }
+        article { padding: 12px; box-decoration-break: slice }
+      </style>
+      <article>
+        <div>a</div>
+        <div>b</div>
+        <div>c</div>
+      </article>`)
+	if len(pages) != 2 {
+		t.Fatalf("got %d pages, want 2", len(pages))
+	}
+	_, body := pageBody(t, pages[0])
+	article := expectChildren(t, body, 1)[0]
+	if got := article.Base().Height.V; got != 80-12 {
+		t.Errorf("page 1 article height = %g, want %d", got, 80-12)
+	}
+	divs := expectChildren(t, article, 2)
+	if divs[0].Base().PositionY != 12 || divs[1].Base().PositionY != 12+20 {
+		t.Errorf("page 1 divs at y = %g, %g; want 12, 32", divs[0].Base().PositionY, divs[1].Base().PositionY)
+	}
+	_, body = pageBody(t, pages[1])
+	article = expectChildren(t, body, 1)[0]
+	if got := article.Base().Height.V; got != 20 {
+		t.Errorf("page 2 article height = %g, want 20", got)
+	}
+	if div := expectChildren(t, article, 1)[0]; div.Base().PositionY != 0 {
+		t.Errorf("page 2 div at y = %g, want 0", div.Base().PositionY)
+	}
+}
+
+func TestNestedBlocksPaddingBorder(t *testing.T) {
+	t.Skip("not supported: nested blocks whose bottom padding and border cross the page")
+	noLogs(t)
+	pages := paginate(t, `
+      <style>
+        @page { size: 4px 12px; margin: 0 }
+        html { font: 2px/1 testfont }
+        article, section, div {
+          border-top: 1px solid; border-bottom: 1px solid;
+          padding-top: 1px; padding-bottom: 1px;
+        }
+      </style>
+      <article>
+        <section>
+          <div>
+            aaa
+            bbb
+          </div>
+        </section>
+      </article>`)
+	for _, page := range pages {
+		_, body := pageBody(t, page)
+		article := expectChildren(t, body, 1)[0]
+		section := expectChildren(t, article, 1)[0]
+		expectChildren(t, section, 1)
+	}
+}
+
+func TestOverflowNonCollapsingParent(t *testing.T) {
+	noLogs(t)
+	pages := paginate(t, `
+      <style>
+        @page { size: 6px 10px; margin: 0 }
+        html { font: 2px/1 testfont }
+        div { border-bottom: 3px solid }
+        p { margin-bottom: 2px }
+      </style>
+      abc
+      def
+      <div>
+        <p>
+          aaa
+        </p>
+      </div>
+      ghi`)
+	if len(pages) != 2 {
+		t.Fatalf("got %d pages, want 2", len(pages))
+	}
+	_, body := pageBody(t, pages[0])
+	lines := expectChildren(t, body, 1)[0]
+	expectChildren(t, lines, 2)
+
+	_, body = pageBody(t, pages[1])
+	expectChildren(t, body, 2)
+}
+
+func TestOverflowAutoContainsItsFloats(t *testing.T) {
+	noLogs(t)
+	page := onlyPage(t, paginate(t, `
+      <article style="overflow: auto">
+        <div style="float: left; height: 50px; margin: 10px">bla bla bla</div>
+          toto toto`))
+	_, body := pageBody(t, page)
+	article := expectChildren(t, body, 1)[0]
+	if got := article.Base().Height.V; got != 50+10+10 {
+		t.Fatalf("article height = %g, want 70", got)
+	}
+}
+
+func TestOverflowHiddenInFlowLayout(t *testing.T) {
+	noLogs(t)
+	page := onlyPage(t, paginate(t, `
+      <div style="overflow: hidden; height: 3px;">
+        <div>abc</div>
+        <div style="height: 100px; margin: 50px;">def</div>
+      </div>
+    `))
+	_, body := pageBody(t, page)
+	parent := expectChildren(t, body, 1)[0]
+	if got := parent.Base().Height.V; got != 3 {
+		t.Fatalf("height = %g, want 3", got)
+	}
+}
+
+func TestOverflowHiddenOutOfFlowLayout(t *testing.T) {
+	noLogs(t)
+	page := onlyPage(t, paginate(t, `
+      <div style="overflow: hidden; height: 3px;">
+        <div style="float: left;">abc</div>
+        <div style="float: right; height: 100px; margin: 50px;">def</div>
+      </div>
+    `))
+	_, body := pageBody(t, page)
+	parent := expectChildren(t, body, 1)[0]
+	if got := parent.Base().Height.V; got != 3 {
+		t.Fatalf("height = %g, want 3", got)
+	}
+}
+
+func TestContinueDiscard(t *testing.T) {
+	noLogs(t)
+	page := onlyPage(t, paginate(t, `
+      <style>
+        @page { size: 80px; margin: 0 }
+        div { display: inline-block; width: 100%; height: 25px }
+        article { continue: discard; border: 1px solid; line-height: 1 }
+      </style>
+      <article>
+        <div>a</div>
+        <div>b</div>
+        <div>c</div>
+        <div>d</div>
+        <div>e</div>
+        <div>f</div>
+      </article>`))
+	_, body := pageBody(t, page)
+	article := expectChildren(t, body, 1)[0]
+	if got := article.Base().Height.V; got != 3*25 {
+		t.Errorf("article height = %g, want 75", got)
+	}
+	lines := expectChildren(t, article, 3)
+	for i, line := range lines {
+		if got, want := line.Base().PositionY, float64(1+25*i); got != want {
+			t.Errorf("line %d at y = %g, want %g", i+1, got, want)
+		}
+	}
+	if got := article.Base().BorderBottomWidth; got != 1 {
+		t.Errorf("border-bottom-width = %g, want 1", got)
+	}
+}
+
+func TestContinueDiscardChildren(t *testing.T) {
+	noLogs(t)
+	page := onlyPage(t, paginate(t, `
+      <style>
+        @page { size: 80px; margin: 0 }
+        div { display: inline-block; width: 100%; height: 25px }
+        section { border: 1px solid }
+        article { continue: discard; border: 1px solid; line-height: 1 }
+      </style>
+      <article>
+        <section>
+          <div>a</div>
+          <div>b</div>
+          <div>c</div>
+          <div>d</div>
+          <div>e</div>
+          <div>f</div>
+        </section>
+      </article>`))
+	_, body := pageBody(t, page)
+	article := expectChildren(t, body, 1)[0]
+	if got := article.Base().Height.V; got != 2+3*25 {
+		t.Errorf("article height = %g, want 77", got)
+	}
+	section := expectChildren(t, article, 1)[0]
+	if got := section.Base().Height.V; got != 3*25 {
+		t.Errorf("section height = %g, want 75", got)
+	}
+	lines := expectChildren(t, section, 3)
+	for i, line := range lines {
+		if got, want := line.Base().PositionY, float64(2+25*i); got != want {
+			t.Errorf("line %d at y = %g, want %g", i+1, got, want)
+		}
+	}
+	if got := article.Base().BorderBottomWidth; got != 1 {
+		t.Errorf("border-bottom-width = %g, want 1", got)
+	}
+}
+
+// lineText returns the text of the first text box of a line box.
+func lineText(t *testing.T, line boxes.Box) string {
+	t.Helper()
+	text, ok := expectChildren(t, line, 1)[0].(*boxes.TextBox)
+	if !ok {
+		t.Fatalf("first child of %v is not text", line)
+	}
+	return text.Text
+}
+
+func TestBlockInBlockWithBottomPadding(t *testing.T) {
+	noLogs(t)
+	pages := paginate(t, `
+      <style>
+        @page { size: 8em 3.5em }
+        body { line-height: 1; font-family: testfont }
+        div { padding-bottom: 1em }
+      </style>
+      abc def
+      <div>
+        <p>
+          ghi jkl
+          mno pqr
+        </p>
+      </div>
+      stu vwx`)
+	if len(pages) != 2 {
+		t.Fatalf("got %d pages, want 2", len(pages))
+	}
+
+	_, body := pageBody(t, pages[0])
+	children := expectChildren(t, body, 2)
+	anon, div := children[0], children[1]
+	line := expectChildren(t, anon, 1)[0]
+	if line.Base().Height.V != 16 || lineText(t, line) != "abc def" {
+		t.Errorf("page 1 anonymous line = %g high, %q", line.Base().Height.V, lineText(t, line))
+	}
+	line = expectChildren(t, expectChildren(t, div, 1)[0], 1)[0]
+	if line.Base().Height.V != 16 || lineText(t, line) != "ghi jkl" {
+		t.Errorf("page 1 paragraph line = %g high, %q", line.Base().Height.V, lineText(t, line))
+	}
+
+	_, body = pageBody(t, pages[1])
+	children = expectChildren(t, body, 2)
+	div, anon = children[0], children[1]
+	line = expectChildren(t, expectChildren(t, div, 1)[0], 1)[0]
+	if line.Base().Height.V != 16 || lineText(t, line) != "mno pqr" {
+		t.Errorf("page 2 paragraph line = %g high, %q", line.Base().Height.V, lineText(t, line))
+	}
+	line = expectChildren(t, anon, 1)[0]
+	if line.Base().Height.V != 16 || line.ContentBoxY() != 16+16 || lineText(t, line) != "stu vwx" {
+		t.Errorf("page 2 anonymous line = %g high at %g, %q; want 16 high at 32",
+			line.Base().Height.V, line.ContentBoxY(), lineText(t, line))
+	}
+}
+
+func TestUnsupportedLayoutModesAreFatalErrors(t *testing.T) {
+	tests := []struct{ name, markup string }{
+		{"flex container", `<div style="display: flex"></div>`},
+		{"grid container", `<div style="display: grid"></div>`},
+		{"table", `<table><tr><td>a</td></tr></table>`},
+		{"columns", `<div style="column-count: 2">a</div>`},
+		{"floated flex container", `<div style="float: left; display: flex"></div>`},
+		{"absolute grid container", `<div style="position: absolute; display: grid"></div>`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pages, err := paginateWithError(t, tt.markup)
+			if err == nil || !strings.Contains(err.Error(), "not supported") {
+				t.Fatalf("error = %v, want one about a layout mode that is not supported", err)
+			}
+			if pages != nil {
+				t.Fatalf("got %d pages besides the error", len(pages))
+			}
+		})
 	}
 }
