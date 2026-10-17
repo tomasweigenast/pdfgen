@@ -46,11 +46,16 @@ func properChildren(b boxes.Box) []func(boxes.Box) bool {
 // can contain: a block container has either only block-level boxes or only
 // line boxes, line boxes and inline boxes only inline-level boxes, and table
 // boxes only the boxes of their level. Boxes out of the normal flow are
-// allowed anywhere.
+// allowed anywhere. The content of running elements and notes is not checked:
+// it is made of anonymous boxes when it is placed in a margin box or in the
+// note area.
 func SanityChecks(t testing.TB, box boxes.Box) {
 	t.Helper()
 	if ph, ok := box.(*boxes.AbsolutePlaceholder); ok {
 		box = ph.Box
+	}
+	if box.IsRunning() || box.IsNote() {
+		return
 	}
 	if _, ok := box.(boxes.Parent); !ok {
 		return

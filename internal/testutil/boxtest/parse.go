@@ -124,10 +124,3 @@ func ParseAllWith(t testing.TB, source string, opts Options) boxes.Box {
 	t.Helper()
 	return NewDocument(t, source, opts).Build(t)
 }
-
-// RenderPages lays out a document and returns its page boxes.
-func RenderPages(t testing.TB, html string) []*boxes.PageBox {
-	t.Helper()
-	t.Skip("rendering pipeline not implemented")
-	return nil
-}
