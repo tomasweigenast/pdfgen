@@ -155,6 +155,9 @@ items:
 					missingTargetCounters[anchor] = map[string]bool{}
 				}
 				missingTargetCounters[anchor][name] = true
+				// The counters that the box misses from then on are those of
+				// the target, which pagination needs to build the box again.
+				missingCounters = missingTargetCounters[anchor]
 			}
 			// The page counters of the target are empty until pagination.
 			local := maps.Clone(lookup.CachedPageCounterValues)
