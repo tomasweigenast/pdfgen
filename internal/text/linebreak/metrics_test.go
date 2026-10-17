@@ -125,3 +125,20 @@ func TestNewStyleHasTheInitialHyphenation(t *testing.T) {
 		t.Errorf("initial hyphenate-limit-chars = %+v", s.HyphenateLimitChars)
 	}
 }
+
+func TestLengthPercentageResolve(t *testing.T) {
+	tests := []struct {
+		name string
+		l    LengthPercentage
+		want float64
+	}{
+		{"length", LengthPercentage{Value: 7}, 7},
+		{"percentage", LengthPercentage{Value: 25, Percent: true}, 50},
+		{"math function", LengthPercentage{Calc: func(base float64) float64 { return base/2 + 3 }}, 103},
+	}
+	for _, tt := range tests {
+		if got := tt.l.Resolve(200); got != tt.want {
+			t.Errorf("%s: Resolve(200) = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}

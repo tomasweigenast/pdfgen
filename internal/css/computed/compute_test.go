@@ -22,7 +22,12 @@ func declare(css string) Cascaded {
 // family builds the styles of nested elements, each with its declarations.
 func family(t *testing.T, css ...string) []*Style {
 	t.Helper()
-	ctx := NewContext(nil)
+	return familyIn(t, NewContext(nil), css...)
+}
+
+// familyIn is like family, in a given context.
+func familyIn(t testing.TB, ctx *Context, css ...string) []*Style {
+	t.Helper()
 	var styles []*Style
 	var parent, root *Style
 	for _, c := range css {

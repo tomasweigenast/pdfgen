@@ -6,8 +6,8 @@ import (
 )
 
 // Style holds the computed values of the properties that change how text
-// is measured and broken into lines. The layout fills it from the computed
-// style of a text box:
+// is measured and broken into lines. css/computed fills it from the computed
+// style of a text box (LineBreakStyle):
 //
 //	Font                 font-family, font-weight, font-style, font-stretch,
 //	                     font-size and font-variation-settings
@@ -63,10 +63,16 @@ type LineHeight = fonts.LineHeight
 type LengthPercentage struct {
 	Value   float64
 	Percent bool
+	// Calc, when not nil, replaces Value and Percent. It resolves a math
+	// function whose percentages refer to the base given to Resolve.
+	Calc func(base float64) float64
 }
 
 // Resolve returns the value in px, percentages being relative to base.
 func (l LengthPercentage) Resolve(base float64) float64 {
+	if l.Calc != nil {
+		return l.Calc(base)
+	}
 	if l.Percent {
 		return l.Value * base / 100
 	}

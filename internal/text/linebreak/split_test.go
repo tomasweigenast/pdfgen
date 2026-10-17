@@ -302,6 +302,8 @@ func TestHyphenateLimitZone(t *testing.T) {
 		{LengthPercentage{Value: 144}, false},
 		{LengthPercentage{Value: 5, Percent: true}, true},
 		{LengthPercentage{Value: 95, Percent: true}, false},
+		{LengthPercentage{Calc: func(base float64) float64 { return base * 5 / 100 }}, true},
+		{LengthPercentage{Calc: func(base float64) float64 { return base - 48 }}, false},
 	}
 	for _, tt := range tests {
 		style := hyphenStyle("fr", "auto")
