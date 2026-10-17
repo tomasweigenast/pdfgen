@@ -443,3 +443,37 @@ func TestMinMaxRTL(t *testing.T) {
 		}
 	}
 }
+
+func TestBlockHeightsOfParagraphs(t *testing.T) {
+	noLogs(t)
+	page := onlyPage(t, paginate(t, `
+      <style>
+        @page { margin: 0; size: 100px 20000px }
+        html, body { margin: 0 }
+        div { margin: 4px; border: 2px solid; padding: 4px }
+        /* Use top margins so that margin collapsing doesn't change result */
+        p { margin: 16px 0 0; border: 4px solid; padding: 8px; height: 50px }
+      </style>
+      <div>
+        <p></p>
+        <!-- Not in normal flow: don't contribute to the parent’s height -->
+        <p style="position: absolute"></p>
+        <p style="float: left"></p>
+      </div>
+      <div> <p></p> <p></p> <p></p> </div>
+      <div style="height: 20px"> <p></p> </div>
+      <div style="height: 120px"> <p></p> </div>
+      <div style="max-height: 20px"> <p></p> </div>
+      <div style="min-height: 120px"> <p></p> </div>
+      <div style="min-height: 20px"> <p></p> </div>
+      <div style="max-height: 120px"> <p></p> </div>
+    `))
+	_, body := pageBody(t, page)
+	var heights []float64
+	for _, div := range boxes.ChildrenOf(body) {
+		heights = append(heights, div.Base().Height.V)
+	}
+	if want := []float64{90, 90 * 3, 20, 120, 20, 120, 90, 90}; fmt.Sprint(heights) != fmt.Sprint(want) {
+		t.Fatalf("heights = %v, want %v", heights, want)
+	}
+}

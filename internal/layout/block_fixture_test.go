@@ -238,11 +238,20 @@ func fixtureFixedBoxes(ctx *Context, pages []*boxes.PageBox, containing *boxes.P
 // there are n of them.
 func expectChildren(t testing.TB, box boxes.Box, n int) []boxes.Box {
 	t.Helper()
-	children := boxes.ChildrenOf(box)
+	children := boxes.ChildrenOf(unwrapPlaceholder(box))
 	if len(children) != n {
 		t.Fatalf("%v has %d children, want %d: %v", box, len(children), n, children)
 	}
 	return children
+}
+
+// unwrapPlaceholder returns the box that a placeholder stands for, which
+// is the box itself for any other.
+func unwrapPlaceholder(box boxes.Box) boxes.Box {
+	if placeholder, ok := box.(*boxes.AbsolutePlaceholder); ok {
+		return placeholder.Box
+	}
+	return box
 }
 
 // onlyPage fails the test unless there is exactly one page, and returns it.
