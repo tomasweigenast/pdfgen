@@ -132,7 +132,7 @@ func TestLengthsAreComputedToPixels(t *testing.T) {
 }
 
 func TestComputedValuesFromUnitsAndFunctions(t *testing.T) {
-	s := family(t, "font-size: 20px; line-height: 1.5", "font-size: 120%; line-height: normal; width: calc(2em + 5px); height: min(20px, 10rem); margin-left: max(2ex, 3ch); padding-top: clamp(1px, 2lh, 20px)")[1]
+	s := familyIn(t, testFontContext(t), "font-family: testfont; font-size: 20px; line-height: 1.5", "font-size: 120%; line-height: normal; width: calc(2em + 5px); height: min(20px, 10rem); margin-left: max(2ex, 3ch); padding-top: clamp(1px, 2lh, 20px)")[1]
 	if got := s.FontSize(); got != 24 {
 		t.Errorf("font-size = %v, want 24px", got)
 	}
@@ -145,8 +145,8 @@ func TestComputedValuesFromUnitsAndFunctions(t *testing.T) {
 	if got := s.Height(); got != props.Px(20) {
 		t.Errorf("height = %v, want 20px", got)
 	}
-	if got := s.MarginLeft(); got != props.Px(36) {
-		t.Errorf("margin-left = %v, want 36px", got)
+	if got := s.MarginLeft(); got != props.Px(72) {
+		t.Errorf("margin-left = %v, want 72px", got)
 	}
 	if got := s.PaddingTop(); got != props.Px(20) {
 		t.Errorf("padding-top = %v, want 20px", got)
