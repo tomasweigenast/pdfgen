@@ -139,3 +139,17 @@ func TestOpacityIsClampedToUnitRange(t *testing.T) {
 		)...)
 	})
 }
+
+func TestOverflowHiddenClipsDescendants(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		GGG_
+		GRR_
+		GRR_
+		____
+	`, `
+		<style>@page { size: 4px }</style>
+		<div style="overflow: hidden; background: lime; width: 3px; height: 3px">
+			<div style="background: red; margin: 1px 0 0 1px; width: 5px; height: 5px"></div>
+		</div>`)
+}
