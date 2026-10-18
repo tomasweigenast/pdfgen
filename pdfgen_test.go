@@ -639,3 +639,10 @@ func TestDocumentIsWrittenMoreThanOnce(t *testing.T) {
 	}
 	parsePDF(t, first.Bytes())
 }
+
+func TestVersionIsWrittenAsProducer(t *testing.T) {
+	out := render(t, fromString(t, `<p>`), pdfgen.Options{UncompressedPDF: true})
+	if want := "/Producer (pdfgen " + pdfgen.Version() + ")"; !bytes.Contains(out, []byte(want)) {
+		t.Errorf("PDF has no %q", want)
+	}
+}
