@@ -65,6 +65,7 @@ func write(path string, src []byte) error {
 		if err != nil {
 			return err
 		}
+		current = bytes.ReplaceAll(current, []byte("\r\n"), []byte("\n"))
 		if !bytes.Equal(current, formatted) {
 			return fmt.Errorf("%s is out of date", path)
 		}
