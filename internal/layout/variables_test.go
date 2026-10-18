@@ -52,26 +52,22 @@ func textBoxOf(t *testing.T, box boxes.Box) *boxes.TextBox {
 func TestVariablesSetTheWidthOfBoxes(t *testing.T) {
 	tests := []struct {
 		name, css string
+		width     float64
 	}{
-		{"simple", "p { --var: 10px; width: var(--var) }"},
-		{"not computed", "p { --var: 1rem; width: var(--var) }"},
-		{"inherit", "html { --var: 10px } p { width: var(--var) }"},
-		{"inherit override", "html { --var: 20px } p { width: var(--var); --var: 10px }"},
-		{"default unknown", "p { width: var(--x, 10px) }"},
-		{"default var", "p { --var: 10px; width: var(--x, var(--var)) }"},
-		{"case sensitive", "html { --var: 20px } body { --VAR: 10px } p { width: var(--VAR) }"},
-		{"chain", "html { --foo: 10px } body { --var: var(--foo) } p { width: var(--var) }"},
+		{"simple", "p { --var: 10px; width: var(--var) }", 10},
+		{"not computed", "p { --var: 1rem; width: var(--var) }", 16},
+		{"inherit", "html { --var: 10px } p { width: var(--var) }", 10},
+		{"inherit override", "html { --var: 20px } p { width: var(--var); --var: 10px }", 10},
+		{"default unknown", "p { width: var(--x, 10px) }", 10},
+		{"default var", "p { --var: 10px; width: var(--x, var(--var)) }", 10},
+		{"case sensitive", "html { --var: 20px } body { --VAR: 10px } p { width: var(--VAR) }", 10},
+		{"chain", "html { --foo: 10px } body { --var: var(--foo) } p { width: var(--var) }", 10},
 	}
-	want := map[string]float64{"not computed": 16}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, body := renderedBody(t, "<style>"+tt.css+"</style><p></p>")
-			w, ok := want[tt.name]
-			if !ok {
-				w = 10
-			}
-			if got := child(t, body).Base().Width.V; got != w {
-				t.Errorf("width = %v, want %v", got, w)
+			if got := child(t, body).Base().Width.V; got != tt.width {
+				t.Errorf("width = %v, want %v", got, tt.width)
 			}
 		})
 	}
@@ -267,11 +263,11 @@ func isLine(box boxes.Box) bool {
 }
 
 // counterTexts returns the texts that the ::before pseudo-element of the
-// divisions of a section generates.
-func counterTexts(t *testing.T, section boxes.Box) []string {
+// divisions of a section generates. The section must have n children.
+func counterTexts(t *testing.T, section boxes.Box, n int) []string {
 	t.Helper()
 	var texts []string
-	for _, c := range boxes.ChildrenOf(section) {
+	for _, c := range children(t, section, n) {
 		if tagOf(c) != "div" {
 			continue
 		}
@@ -318,7 +314,7 @@ func TestVariablesInCounterFunctions(t *testing.T) {
 				section += `<h1></h1><div` + tt.extra + `></div>`
 			}
 			_, body := renderedBody(t, "<style>"+tt.css+"</style><section>"+section+"</section>")
-			got := counterTexts(t, child(t, body))
+			got := counterTexts(t, child(t, body), 2*len(tt.want))
 			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
 				t.Errorf("counters = %q, want %q", got, tt.want)
 			}
@@ -364,7 +360,7 @@ func TestVariableInCounterFunctionMissing(t *testing.T) {
 	if len(lines) != 2 || !strings.Contains(lines[0], "no value") || !strings.Contains(lines[1], "invalid value") {
 		t.Errorf("logs = %q", lines)
 	}
-	for i, text := range counterTexts(t, child(t, body)) {
+	for i, text := range counterTexts(t, child(t, body), 4) {
 		if text != "" {
 			t.Errorf("division %d has the text %q, want no content", i+1, text)
 		}
