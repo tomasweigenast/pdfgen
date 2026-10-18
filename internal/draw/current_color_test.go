@@ -23,7 +23,6 @@ func TestCurrentColorBackground(t *testing.T) {
 }
 
 func TestCurrentColorInheritedBorder(t *testing.T) {
-	t.Skip("not supported: borders are not drawn yet")
 	testutil.AssertPixels(t, `
 		GG
 		GG
@@ -122,7 +121,6 @@ func TestCurrentColorVariable(t *testing.T) {
 }
 
 func TestCurrentColorVariableBorder(t *testing.T) {
-	t.Skip("not supported: borders are not drawn yet")
 	testutil.AssertPixels(t, `
 		GG
 		GG
