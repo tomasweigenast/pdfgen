@@ -41,7 +41,11 @@ func boxRectangle(box boxes.Box, rectangle props.Keyword) boxes.Rect {
 func layoutBoxBackgrounds(page *boxes.PageBox, box boxes.Box, getImage images.Getter, options backgroundOptions) error {
 	resolveRadiiPercentages(box)
 	if options.Children {
-		for _, child := range boxes.AllChildren(box) {
+		inner := box
+		if p, ok := box.(*boxes.AbsolutePlaceholder); ok {
+			inner = p.Box
+		}
+		for _, child := range boxes.AllChildren(inner) {
 			if err := layoutBoxBackgrounds(page, child, getImage, backgroundOptions{Children: true}); err != nil {
 				return err
 			}

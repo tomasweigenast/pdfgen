@@ -127,7 +127,6 @@ func TestZIndexPaintingOrder(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.zIndexes[:], " "), func(t *testing.T) {
-			t.Skip("backgrounds of boxes nested in absolutely positioned boxes are not laid out")
 			row := strings.Repeat(tt.color, 10)
 			expected := strings.TrimSuffix(strings.Repeat(row+"\n", 10), "\n")
 			html := fmt.Sprintf(zIndexSource, tt.zIndexes[0], tt.zIndexes[1], tt.zIndexes[2])
