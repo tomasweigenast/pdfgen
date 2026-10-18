@@ -938,7 +938,6 @@ func TestBackgroundOrigin(t *testing.T) {
 }
 
 func TestBackgroundOfTransformedBox(t *testing.T) {
-	t.Skip("not supported: transform matrices are not computed for pages yet")
 	testutil.AssertPixels(t, `
 		_______
 		_RRRRR_

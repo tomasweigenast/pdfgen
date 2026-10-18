@@ -17,8 +17,10 @@ type Page struct {
 	Box *boxes.PageBox
 }
 
-// NewPage returns the page of a page box.
+// NewPage returns the page of a page box, setting the transformation matrices
+// of its boxes.
 func NewPage(box *boxes.PageBox) *Page {
+	boxes.SetTransformationMatrices(box)
 	return &Page{
 		Width:  box.MarginWidth(),
 		Height: box.MarginHeight(),
