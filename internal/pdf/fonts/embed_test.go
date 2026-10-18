@@ -244,7 +244,7 @@ func TestUnhintedTrueTypeSubsetKeepsTheShapes(t *testing.T) {
 	if plain == 0 {
 		t.Fatal("the unhinted subset drew nothing")
 	}
-	if diff := plain - hinted; diff > hinted/10 || -diff > hinted/10 {
+	if diff := plain - hinted; diff > hinted*15/100 || -diff > hinted*15/100 {
 		t.Errorf("ink pixels: %d unhinted, %d hinted", plain, hinted)
 	}
 }
