@@ -308,3 +308,21 @@ func TestTransformWithOpacity(t *testing.T) {
       </style>
       <div></div>`)
 }
+
+func TestSingularTransformPaintsNothing(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		______
+		______
+		______
+		______
+		______
+		______
+	`, `
+		<style>
+		  @page { size: 6px }
+		  div { transform: scale(0, 1); background: red; width: 4px; height: 4px }
+		  p { background: blue; width: 2px; height: 2px }
+		</style>
+		<div><p></p></div>`)
+}

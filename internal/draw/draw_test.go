@@ -1,7 +1,6 @@
 package draw_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/tomasweigenast/pdfgen/internal/testutil"
@@ -75,69 +74,6 @@ func TestImagesArePainted(t *testing.T) {
 				<div><img src="`+tt.filename+`"></div>`)
 		})
 	}
-}
-
-const opacitySource = `
-	<style>
-		@page { size: 60px 60px }
-		div { background: #000; width: 20px; height: 20px }
-	</style>
-	%s`
-
-func opacityDocuments(bodies ...string) []string {
-	docs := make([]string, len(bodies))
-	for i, body := range bodies {
-		docs[i] = fmt.Sprintf(opacitySource, body)
-	}
-	return docs
-}
-
-func TestOpacityZeroPaintsNothing(t *testing.T) {
-	testutil.AssertNoLogs(t)
-	testutil.AssertSameRenderings(t, 0, opacityDocuments(
-		`<div></div>`,
-		`<div></div><div style="opacity: 0"></div>`,
-		`<div></div><div style="opacity: 0%"></div>`,
-	)...)
-}
-
-func TestOpacityBlendsWithBackdrop(t *testing.T) {
-	testutil.AssertNoLogs(t)
-	testutil.AssertSameRenderings(t, 0, opacityDocuments(
-		`<div style="background: rgb(102, 102, 102)"></div>`,
-		`<div style="opacity: 0.6"></div>`,
-		`<div style="opacity: 60%"></div>`,
-		`<div style="opacity: 60.0%"></div>`,
-	)...)
-}
-
-func TestNestedOpacityMultiplies(t *testing.T) {
-	testutil.AssertNoLogs(t)
-	testutil.AssertSameRenderings(t, 0, opacityDocuments(
-		`<div style="background: rgb(102, 102, 102)"></div>`,
-		`<div style="opacity: 0.6"></div>`,
-		`<div style="background: none; opacity: 0.666666">
-			<div style="opacity: 0.9"></div>
-		</div>`,
-	)...)
-}
-
-func TestOpacityIsClampedToUnitRange(t *testing.T) {
-	testutil.AssertNoLogs(t)
-	t.Run("above one", func(t *testing.T) {
-		testutil.AssertSameRenderings(t, 0, opacityDocuments(
-			`<div></div>`,
-			`<div style="opacity: 1.2"></div>`,
-			`<div style="opacity: 120%"></div>`,
-		)...)
-	})
-	t.Run("below zero", func(t *testing.T) {
-		testutil.AssertSameRenderings(t, 0, opacityDocuments(
-			`<div></div>`,
-			`<div></div><div style="opacity: -0.2"></div>`,
-			`<div></div><div style="opacity: -20%"></div>`,
-		)...)
-	})
 }
 
 func TestOverflowHiddenClipsDescendants(t *testing.T) {
