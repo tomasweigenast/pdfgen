@@ -3,6 +3,7 @@ package tokens
 import (
 	"errors"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/tomasweigenast/pdfgen/internal/css/props"
@@ -12,6 +13,12 @@ import (
 func parseOne(t *testing.T, css string) syntax.Node {
 	t.Helper()
 	return syntax.ParseOneComponentValue(css, true)
+}
+
+type unitStyle map[string]float64
+
+func (s unitStyle) ToPixels(value float64, unit, _ string) float64 {
+	return value * s[unit]
 }
 
 func TestGetLength(t *testing.T) {
@@ -167,6 +174,161 @@ func TestCheckVar(t *testing.T) {
 	for _, tt := range tests {
 		if got := CheckVar(parseOne(t, tt.css)); got != tt.want {
 			t.Errorf("CheckVar(%q) = %v, want %v", tt.css, got, tt.want)
+		}
+	}
+}
+
+func TestTokenListHelpers(t *testing.T) {
+	tokens := syntax.ParseComponentValueList("  alpha, calc(1px, 2px), , beta  ", true)
+	if got := len(RemoveWhitespace(tokens)); got != 6 {
+		t.Fatalf("RemoveWhitespace returned %d tokens, want 6", got)
+	}
+	parts := SplitOnComma(RemoveWhitespace(tokens))
+	if len(parts) != 4 || len(parts[1]) != 1 || len(parts[1][0].(*syntax.FunctionBlock).Arguments) == 0 || len(parts[2]) != 0 {
+		t.Fatalf("SplitOnComma returned unexpected groups: %v", parts)
+	}
+	if GetKeyword(parseOne(t, "MiXeD")) != "mixed" || GetCustomIdent(parseOne(t, "MiXeD")) != "MiXeD" {
+		t.Fatal("identifier helpers did not preserve the expected casing")
+	}
+	if GetSingleKeyword([]syntax.Node{parseOne(t, "BLOCK")}) != "block" || GetSingleKeyword(tokens) != "" {
+		t.Fatal("GetSingleKeyword did not enforce a single identifier")
+	}
+}
+
+func TestParsePositionForms(t *testing.T) {
+	tests := []struct {
+		css string
+		ok  bool
+	}{
+		{"left", true}, {"top right", true}, {"right 12px bottom 3%", true},
+		{"center top 4px", true}, {"top 4px right", true}, {"left right", false},
+		{"left 1px top 2px extra", false},
+	}
+	for _, tt := range tests {
+		tokens := syntax.ParseComponentValueList(tt.css, true)
+		_, got := ParsePosition(RemoveWhitespace(tokens))
+		if got != tt.ok {
+			t.Errorf("ParsePosition(%q) valid = %v, want %v", tt.css, got, tt.ok)
+		}
+	}
+	for _, tt := range []struct {
+		css  string
+		want bool
+	}{{"open-quote", true}, {"NO-CLOSE-QUOTE", true}, {"close", false}} {
+		_, got := GetQuote(parseOne(t, tt.css))
+		if got != tt.want {
+			t.Errorf("GetQuote(%q) = %v, want %v", tt.css, got, tt.want)
+		}
+	}
+}
+
+func TestGetResolution(t *testing.T) {
+	for _, tt := range []struct {
+		css  string
+		want float64
+		ok   bool
+	}{{"96dpi", 1, true}, {"2dppx", 2, true}, {"1dpcm", 2.54 / 96, true}, {"1px", 0, false}} {
+		got, ok := GetResolution(parseOne(t, tt.css))
+		if ok != tt.ok || (ok && math.Abs(got-tt.want) > 1e-9) {
+			t.Errorf("GetResolution(%q) = %v, %v; want %v, %v", tt.css, got, ok, tt.want, tt.ok)
+		}
+	}
+}
+
+func TestTokenFunctionParsing(t *testing.T) {
+	fn := NewFunction(parseOne(t, `fn(one, two)`))
+	if !fn.IsFunction() || fn.Name != "fn" || len(fn.SplitSpace()) == 0 || len(fn.SplitComma()) != 2 {
+		t.Fatalf("function was not split into its arguments: %#v", fn)
+	}
+	if got := fn.SplitCommaGroups(false); len(got) != 2 || len(got[0]) != 1 || len(got[1]) != 1 {
+		t.Errorf("SplitCommaGroups() = %#v", got)
+	}
+	for _, css := range []string{"fn(one,,two)", "fn(one two)"} {
+		if got := NewFunction(parseOne(t, css)).SplitComma(); got != nil {
+			t.Errorf("SplitComma(%q) = %v, want nil", css, got)
+		}
+	}
+	if NewFunction(parseOne(t, "word")).IsFunction() || NewFunction(parseOne(t, "word")).SplitSpace() != nil {
+		t.Fatal("a non-function token was accepted as a function")
+	}
+	for _, tt := range []struct {
+		css string
+		ok  bool
+	}{
+		{`attr(title)`, true}, {`attr(title string, "fallback")`, true},
+		{`counter(chapter)`, true}, {`counter(chapter, upper-roman)`, true},
+		{`counters(chapter, ".", decimal)`, true}, {`counters(chapter, decimal)`, false},
+		{`content()`, true}, {`content(marker)`, true}, {`content(unknown)`, false},
+		{`string(chapter)`, true}, {`string(chapter, last)`, true}, {`string(chapter, middle)`, false},
+	} {
+		var got bool
+		switch tt.css[:strings.IndexByte(tt.css, '(')] {
+		case "attr":
+			_, got = CheckAttr(parseOne(t, tt.css), "")
+		case "counter", "counters":
+			_, got = CheckCounter(parseOne(t, tt.css))
+		case "content":
+			_, got = CheckContent(parseOne(t, tt.css))
+		case "string":
+			_, got = CheckStringOrElement("string", parseOne(t, tt.css))
+		}
+		if got != tt.ok {
+			t.Errorf("%s valid = %v, want %v", tt.css, got, tt.ok)
+		}
+	}
+	if _, ok, _ := GetContentListToken(parseOne(t, "leader(dotted)"), ""); !ok {
+		t.Error("leader() was rejected")
+	}
+	if _, ok, _ := GetContentListToken(parseOne(t, "element(chapter, last)"), ""); !ok {
+		t.Error("element() was rejected")
+	}
+}
+
+func TestPercentageAndRelativeMathResolution(t *testing.T) {
+	for _, tt := range []struct {
+		css      string
+		negative bool
+		want     float64
+		ok       bool
+	}{
+		{"25%", true, 25, true}, {"-25%", false, 0, false},
+		{"calc(-25%)", false, 0, true}, {"10px", true, 0, false},
+	} {
+		got, ok := GetPercentage(parseOne(t, tt.css), tt.negative)
+		if ok != tt.ok || (ok && got.Value != tt.want) {
+			t.Errorf("GetPercentage(%q) = %v, %v; want %v, %v", tt.css, got, ok, tt.want, tt.ok)
+		}
+	}
+	style := unitStyle{"em": 10, "rem": 16, "vw": 2}
+	for _, tt := range []struct {
+		css  string
+		want float64
+	}{
+		{"calc(2em + 5px)", 25}, {"calc(1rem + 2px)", 18},
+		{"calc(10vw + 1px)", 21}, {"min(2em, 15px)", 15},
+		{"max(2em, 25px)", 25}, {"clamp(10px, 2em, 20px)", 20},
+		{"round(up, 1.2, 1)", 2}, {"round(down, 1.8, 1)", 1},
+		{"round(to-zero, -1.8, 1)", -1}, {"round(nearest, 2.5, 1)", 3},
+		{"round(1.25, .5)", 1.5}, {"tan(45deg)", 1},
+		{"asin(1)", math.Pi / 2}, {"acos(1)", 0}, {"atan(1)", math.Pi / 4},
+		{"exp(0)", 1}, {"log(8, 2)", 3}, {"hypot(3, 4)", 5},
+		{"sign(0)", 0}, {"abs(-2)", 2},
+	} {
+		got, err := ResolveMath(parseOne(t, tt.css), style, "width", nil)
+		if err != nil {
+			t.Errorf("ResolveMath(%q): %v", tt.css, err)
+			continue
+		}
+		n, ok := got.(*syntax.NumberToken)
+		if !ok {
+			d, dim := got.(*syntax.DimensionToken)
+			if !dim || math.Abs(d.Value-tt.want) > 1e-9 {
+				t.Errorf("ResolveMath(%q) = %s, want %v", tt.css, got.Serialize(), tt.want)
+			}
+			continue
+		}
+		if math.Abs(n.Value-tt.want) > 1e-9 {
+			t.Errorf("ResolveMath(%q) = %v, want %v", tt.css, n.Value, tt.want)
 		}
 	}
 }
