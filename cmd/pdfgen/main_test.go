@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -29,6 +30,9 @@ func buildAndRun(m *testing.M) int {
 	defer os.RemoveAll(dir)
 
 	binary = filepath.Join(dir, "pdfgen")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	if out, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
 		fmt.Fprintf(os.Stderr, "build the command: %v\n%s", err, out)
 		return 1
