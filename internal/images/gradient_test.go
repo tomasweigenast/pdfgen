@@ -170,6 +170,133 @@ func TestLinearGradientPixels(t *testing.T) {
 	})
 }
 
+func TestRadialGradientPixels(t *testing.T) {
+	runGradientPixelCases(t, []gradientPixelCase{
+		{"all stops inside out", 6, 6, "radial-gradient(red -30%, blue -10%)", `
+			BBBBBB
+			BBBBBB
+			BBBBBB
+			BBBBBB
+			BBBBBB
+			BBBBBB
+		`},
+		{"all stops outside", 6, 6, "radial-gradient(red 110%, blue 130%)", `
+			RRRRRR
+			RRRRRR
+			RRRRRR
+			RRRRRR
+			RRRRRR
+			RRRRRR
+		`},
+		{"ellipse", 10, 16, "radial-gradient(red 20%, blue 80%)", `
+			BzzzzzzzzB
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzRRzzzz
+			zzzzRRzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			BzzzzzzzzB
+		`},
+		{"stops at one position", 10, 16, "radial-gradient(red 50%, blue 50%)", `
+			BzzzzzzzzB
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzRRzzzz
+			zzzzRRzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			BzzzzzzzzB
+		`},
+		{"translucent stop", 10, 16, "radial-gradient(red 50%, rgba(255, 0, 0, 0.751) 50%)", `
+			SzzzzzzzzS
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzRRzzzz
+			zzzzRRzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			SzzzzzzzzS
+		`},
+		{"negative first stop", 10, 16, "radial-gradient(circle, red -1px, red 3px, blue 3px, blue 6px)", `
+			BzzzzzzzzB
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzBBzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			BzzzRRzzzB
+			BzzzRRzzzB
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			zzzzBBzzzz
+			zzzzzzzzzz
+			zzzzzzzzzz
+			BzzzzzzzzB
+		`},
+		{"repeating", 10, 16, "repeating-radial-gradient(circle, red 0, red 3px, blue 3px, blue 6px)", repeatingRadial},
+		{"repeating from outside", 10, 16, "repeating-radial-gradient(circle, red 6px, red 9px, blue 9px, blue 12px)", repeatingRadial},
+		{"repeating from a partial ring", 10, 16, "repeating-radial-gradient(circle, blue 3px, blue 6px, red 6px, red 9px)", repeatingRadial},
+		{"repeating with negative first stop", 10, 16, "repeating-radial-gradient(circle, blue -3px, blue 0, red 0, red 3px)", repeatingRadial},
+		{"hint in px", 6, 6, "radial-gradient(blue, 4px, white)", radialHint},
+		{"hint in percent", 6, 6, "radial-gradient(blue, 99%, white)", radialHint},
+	})
+}
+
+const repeatingRadial = `
+	RzzzzzzzzR
+	zzzzzzzzzz
+	zzzzzzzzzz
+	zzzzzzzzzz
+	zzzzBBzzzz
+	zzzzzzzzzz
+	zzzzzzzzzz
+	zBzzRRzzBz
+	zBzzRRzzBz
+	zzzzzzzzzz
+	zzzzzzzzzz
+	zzzzBBzzzz
+	zzzzzzzzzz
+	zzzzzzzzzz
+	zzzzzzzzzz
+	RzzzzzzzzR
+`
+
+const radialHint = `
+	zzzzzz
+	zzBBzz
+	zBBBBz
+	zBBBBz
+	zzBBzz
+	zzzzzz
+`
+
 func TestGradientSoftMaskOnlyForTranslucentStops(t *testing.T) {
 	tests := []struct {
 		name, css string
@@ -178,12 +305,26 @@ func TestGradientSoftMaskOnlyForTranslucentStops(t *testing.T) {
 		{"opaque", "linear-gradient(red, blue)", false},
 		{"translucent", "linear-gradient(red, rgba(0, 0, 255, 0.5))", true},
 		{"transparent keyword", "linear-gradient(red, transparent)", true},
+		{"radial translucent", "radial-gradient(red, rgba(0, 0, 255, 0.5))", true},
+		{"radial opaque", "radial-gradient(red, blue)", false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			pdf := drawGradient(t, 5, 5, tc.css)
 			if got := bytes.Contains(pdf, []byte("/SMask <<")) || bytes.Contains(pdf, []byte("/Luminosity")); got != tc.want {
 				t.Errorf("soft mask present = %t, want %t", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGradientsInEmptyBoxesDrawNothing(t *testing.T) {
+	for _, css := range []string{"linear-gradient(red, blue)", "radial-gradient(red, blue)", "repeating-linear-gradient(red, blue 1px)"} {
+		t.Run(css, func(t *testing.T) {
+			testutil.AssertNoLogs(t)
+			pdf := renderPDF(t, 5, 5, func(s *stream.Stream) { drawAt(s, gradientFor(t, css), 0, 0, 0, 0, "auto") })
+			if bytes.Contains(pdf, []byte(" sh")) {
+				t.Error("an empty box painted a shading")
 			}
 		})
 	}

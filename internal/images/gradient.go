@@ -79,6 +79,8 @@ func GradientFromProps(img props.Image, currentColor syntax.Color) (Image, bool)
 	switch {
 	case img.Type == "linear-gradient" && img.Linear != nil:
 		return NewLinearGradient(img.Linear, currentColor), true
+	case img.Type == "radial-gradient" && img.Radial != nil:
+		return NewRadialGradient(img.Radial, currentColor), true
 	}
 	return nil, false
 }
@@ -93,6 +95,9 @@ func (g *gradient) IntrinsicSize(resolution, fontSize float64) (w, h, ratio unit
 // mask holding the alphas (ISO 32000-1 §11.6.5.2), as shadings carry no
 // alpha of their own.
 func paint(s *stream.Stream, w, h float64, l gradientLayout) {
+	if w <= 0 || h <= 0 {
+		return
+	}
 	switch l.kind {
 	case gradientNone:
 		return
