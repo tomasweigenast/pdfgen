@@ -42,6 +42,7 @@ func iterLineBoxes(ctx *Context, box, containing boxes.Box, opts blockOptions, p
 			if result.Line == nil {
 				return
 			}
+			handleLeader(ctx, result.Line, containing)
 			positionY = result.Line.PositionY + result.Line.Height.V
 			if !yield(result) || result.ResumeAt == nil {
 				return
