@@ -184,3 +184,23 @@ func TestHiddenBoxHasNoBorder(t *testing.T) {
 		t.Errorf("hidden box paints a border:\n%s", content)
 	}
 }
+
+func TestInsetBorderSidesAreShaded(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	content := pageContent(t, `
+		<style>@page { size: 20px } body { margin: 0 }</style>
+		<div style="width: 12px; height: 12px; border: 2px inset blue"></div>`)
+
+	colors := regexp.MustCompile(`(?m)^([\d. ]+) rg$`).FindAllStringSubmatch(content, -1)
+	var got []string
+	for _, m := range colors {
+		got = append(got, m[1])
+	}
+	// Top and left are darker than bottom and right for inset. Shades are
+	// a hundredth of their value.
+	dark, light := "0.001333 0.001333 0.006667", "0 0 0.01"
+	want := []string{"1 1 1", light, dark, light, dark}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("fill colors = %v, want %v", got, want)
+	}
+}

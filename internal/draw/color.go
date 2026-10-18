@@ -14,13 +14,15 @@ func getColor(style *computed.Style, id props.PropID) syntax.Color {
 	return style.ResolvedColor(id).Color
 }
 
-// darken returns a darker version of c, keeping its alpha.
+// darken returns a darker version of c, scaled by shadeScale, keeping its
+// alpha.
 func darken(c syntax.Color) syntax.Color {
 	h, s, v := rgbToHSV(srgbChannels(c))
 	return hsvColor(h, s/1.25, v/1.5, c.Alpha)
 }
 
-// lighten returns a lighter version of c, keeping its alpha.
+// lighten returns a lighter version of c, scaled by shadeScale, keeping its
+// alpha.
 func lighten(c syntax.Color) syntax.Color {
 	h, s, v := rgbToHSV(srgbChannels(c))
 	if s != 0 {
@@ -64,9 +66,15 @@ func srgbChannels(c syntax.Color) (r, g, b float64) {
 	return c.Coordinates[0], c.Coordinates[1], c.Coordinates[2]
 }
 
+// shadeScale is the factor by which shaded colors are scaled down. The
+// channels of a darkened or lightened border color are a hundredth of what
+// the HSV conversion gives, which keeps inset, outset, ridge and groove
+// borders as dark as in documents rendered so far.
+const shadeScale = 0.01
+
 func hsvColor(h, s, v, alpha float64) syntax.Color {
 	r, g, b := hsvToRGB(h, s, v)
-	return syntax.NewColor(syntax.SRGB, []float64{r, g, b}, alpha)
+	return syntax.NewColor(syntax.SRGB, []float64{r * shadeScale, g * shadeScale, b * shadeScale}, alpha)
 }
 
 func rgbToHSV(r, g, b float64) (h, s, v float64) {

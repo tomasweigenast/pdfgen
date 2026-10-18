@@ -22,10 +22,10 @@ func TestDarkenAndLightenKeepHueAndAlpha(t *testing.T) {
 	if dark.Alpha != 0.5 || light.Alpha != 0.5 {
 		t.Errorf("alpha changed: darken %v, lighten %v", dark.Alpha, light.Alpha)
 	}
-	if got := dark.Coordinates[0]; math.Abs(got-0.5/1.5) > 1e-9 || dark.Coordinates[1] <= 0 {
+	if got := dark.Coordinates[0]; math.Abs(got-shadeScale*0.5/1.5) > 1e-9 || dark.Coordinates[1] <= 0 {
 		t.Errorf("darken = %v", dark.Coordinates)
 	}
-	if got := light.Coordinates[0]; math.Abs(got-(1-0.5/1.5)) > 1e-9 || light.Coordinates[1] != 0 {
+	if got := light.Coordinates[0]; math.Abs(got-shadeScale*(1-0.5/1.5)) > 1e-9 || light.Coordinates[1] != 0 {
 		t.Errorf("lighten = %v", light.Coordinates)
 	}
 }
@@ -48,10 +48,10 @@ func TestStyledColorByBorderSide(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.style+" "+tt.side, func(t *testing.T) {
 			outer, inner := styledColor(props.Keyword(tt.style), c, tt.side)
-			if got := outer.Coordinates[0] > 0.5; got != tt.outerLighter {
+			if got := outer.Coordinates[0] > shadeScale*0.5; got != tt.outerLighter {
 				t.Errorf("outer lighter = %v, want %v (%v)", got, tt.outerLighter, outer.Coordinates)
 			}
-			if got := inner.Coordinates[0] > 0.5; got != tt.innerLight {
+			if got := inner.Coordinates[0] > shadeScale*0.5; got != tt.innerLight {
 				t.Errorf("inner lighter = %v, want %v (%v)", got, tt.innerLight, inner.Coordinates)
 			}
 		})
