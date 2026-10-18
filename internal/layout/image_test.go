@@ -303,14 +303,6 @@ func TestEmbeddedObjectsWithoutContentFallBackToTheirChildren(t *testing.T) {
 	}
 }
 
-func TestLinearGradientLayout(t *testing.T) {
-	t.Skip("not supported: gradients are only laid out when they are drawn")
-}
-
-func TestRadialGradientLayout(t *testing.T) {
-	t.Skip("not supported: gradients are only laid out when they are drawn")
-}
-
 // imageMinMaxWidthCases are the limits on the size of two images in an
 // inline block and the width that the inline block gets.
 var imageMinMaxWidthCases = []struct {
