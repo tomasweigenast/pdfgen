@@ -38,7 +38,6 @@ func TestCurrentColorInheritedBorder(t *testing.T) {
 }
 
 func TestCurrentColorInheritedOutline(t *testing.T) {
-	t.Skip("not supported: outlines are not drawn yet")
 	testutil.AssertPixels(t, `
 		GG
 		GG
