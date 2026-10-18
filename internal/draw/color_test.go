@@ -62,3 +62,20 @@ func TestStyledColorByBorderSide(t *testing.T) {
 		t.Errorf("solid border changed the color: %v, %v", outer.Coordinates, inner.Coordinates)
 	}
 }
+
+func TestShadedColorChannelsAreNeverNegative(t *testing.T) {
+	for _, c := range []syntax.Color{
+		syntax.NewColor(syntax.SRGB, []float64{0, 0, 1}, 1),
+		syntax.NewColor(syntax.SRGB, []float64{1, 0, 0}, 1),
+		syntax.NewColor(syntax.SRGB, []float64{0, 1, 0}, 1),
+	} {
+		for name, shade := range map[string]func(syntax.Color) syntax.Color{"darken": darken, "lighten": lighten} {
+			for _, v := range shade(c).Coordinates {
+				if v < 0 {
+					t.Errorf("%s(%v) has a negative channel: %v", name, c.Coordinates, shade(c).Coordinates)
+					break
+				}
+			}
+		}
+	}
+}

@@ -98,8 +98,11 @@ func hsvToRGB(h, s, v float64) (r, g, b float64) {
 	if s == 0 {
 		return v, v, v
 	}
-	i := math.Floor(h * 6)
-	f := h*6 - i
+	// The conversion keeps the compiler from fusing the product with the
+	// subtraction, which gives a tiny negative remainder for h = 2/3.
+	sector := float64(h * 6)
+	i := math.Floor(sector)
+	f := sector - i
 	p, q, t := v*(1-s), v*(1-s*f), v*(1-s*(1-f))
 	switch int(i) % 6 {
 	case 0:
