@@ -1,0 +1,310 @@
+package draw_test
+
+import (
+	"testing"
+
+	"github.com/tomasweigenast/pdfgen/internal/testutil"
+	_ "github.com/tomasweigenast/pdfgen/internal/testutil/rendertest"
+)
+
+func TestTransformRotate(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		__________
+		__BBBr____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__________
+		__________
+		__________
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px }
+        body { font-size: 0 }
+        img { transform: rotate(90deg) }
+      </style>
+      <body><img src="pattern.png">`)
+}
+
+func TestTransformTranslateThenRotate(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		__________
+		_____BBBr_
+		_____BBBB_
+		_____BBBB_
+		_____BBBB_
+		__________
+		__________
+		__________
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px }
+        body { font-size: 0 }
+        img { transform: translateX(3px) rotate(90deg) }
+      </style>
+      <body><img src="pattern.png">`)
+}
+
+func TestTransformRotateThenTranslate(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		__________
+		__________
+		__________
+		__________
+		__BBBr____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px }
+        body { font-size: 0 }
+        img { transform: rotate(90deg) translateX(3px) }
+      </style>
+      <body><img src="pattern.png">`)
+}
+
+func TestTransformOnParentAndChild(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		__________
+		__________
+		__________
+		__________
+		__BBBr____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px }
+        div { transform: rotate(90deg); font-size: 0; width: 4px }
+        img { transform: translateX(3px) }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformMatrixMirror(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		________
+		________
+		__BBBr__
+		__BBBB__
+		__BBBB__
+		__BBBB__
+		________
+		________
+	`, `
+      <style>
+        @page { size: 8px; margin: 2px; }
+        div { transform: matrix(-1, 0, 0, 1, 0, 0); font-size: 0 }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformTranslate(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		________
+		________
+		________
+		________
+		___rBBB_
+		___BBBB_
+		___BBBB_
+		___BBBB_
+	`, `
+      <style>
+        @page { size: 8px; margin: 2px; }
+        div { transform: translate(1px, 2px); font-size: 0 }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformTranslatePercentage(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		________
+		________
+		___rBBB_
+		___BBBB_
+		___BBBB_
+		___BBBB_
+		________
+		________
+	`, `
+      <style>
+        @page { size: 8px; margin: 2px; }
+        div { transform: translate(25%, 0); font-size: 0 }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformTranslateEm(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		________
+		________
+		_____rBB
+		_____BBB
+		_____BBB
+		_____BBB
+		________
+		________
+	`, `
+      <style>
+        @page { size: 8px; margin: 2px; }
+        div { transform: translateX(0.25em); font-size: 12px }
+        div div { font-size: 0 }
+      </style>
+      <div><div><img src="pattern.png"></div></div>`)
+}
+
+func TestTransformTranslateNegative(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		________
+		__rBBB__
+		__BBBB__
+		__BBBB__
+		__BBBB__
+		________
+		________
+		________
+	`, `
+      <style>
+        @page { size: 8px; margin: 2px; }
+        div { transform: translateY(-1px); font-size: 0 }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformScaleWithOrigin(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		_rrBBBBBB_
+		_rrBBBBBB_
+		_BBBBBBBB_
+		_BBBBBBBB_
+		_BBBBBBBB_
+		_BBBBBBBB_
+		_BBBBBBBB_
+		_BBBBBBBB_
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px; }
+        div { transform: scale(2, 2);
+              transform-origin: 1px 1px 1px;
+              image-rendering: pixelated;
+              font-size: 0 }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformScaleNonUniform(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		__rBBB____
+		__rBBB____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px; }
+        div { transform: scale(1, 2);
+              transform-origin: 1px 1px;
+              image-rendering: pixelated;
+              font-size: 0 }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformScaleY(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		__rBBB____
+		__rBBB____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__BBBB____
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px; }
+        div { transform: scaleY(2);
+              transform-origin: 1px 1px 0;
+              image-rendering: pixelated;
+              font-size: 0 }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformScaleX(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		__________
+		_rrBBBBBB_
+		_BBBBBBBB_
+		_BBBBBBBB_
+		_BBBBBBBB_
+		__________
+		__________
+		__________
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px; }
+        div { transform: scaleX(2);
+              transform-origin: 1px 1px;
+              image-rendering: pixelated;
+              font-size: 0 }
+      </style>
+      <div><img src="pattern.png"></div>`)
+}
+
+func TestTransformWithOpacity(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		__________
+		__________
+		__________
+		_ss_______
+		_ss_______
+		__________
+		__________
+		__________
+		__________
+		__________
+	`, `
+      <style>
+        @page { size: 10px; margin: 2px; }
+        div { transform: translate(-1px, 1px); background: red;
+              height: 2px; width: 2px; opacity: 0.5 }
+      </style>
+      <div></div>`)
+}
