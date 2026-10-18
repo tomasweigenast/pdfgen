@@ -9,6 +9,7 @@ import (
 	"github.com/tomasweigenast/pdfgen/internal/draw"
 	"github.com/tomasweigenast/pdfgen/internal/testutil"
 	"github.com/tomasweigenast/pdfgen/internal/testutil/boxtest"
+	_ "github.com/tomasweigenast/pdfgen/internal/testutil/rendertest"
 )
 
 // serializeStacking describes a context as its element, the elements of the
@@ -96,5 +97,41 @@ func TestImageStackingContexts(t *testing.T) {
 	want = []boxtest.Node{boxtest.Replaced("img", "InlineReplaced")}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("sub-contexts = %v, want %v", got, want)
+	}
+}
+
+const zIndexSource = `
+	<style>
+		@page { size: 10px }
+		div, div * { width: 10px; height: 10px; position: absolute }
+		article { background: red; z-index: %s }
+		section { background: blue; z-index: %s }
+		nav { background: lime; z-index: %s }
+	</style>
+	<div>
+		<article></article>
+		<section></section>
+		<nav></nav>
+	</div>`
+
+func TestZIndexPaintingOrder(t *testing.T) {
+	tests := []struct {
+		zIndexes [3]string
+		color    string
+	}{
+		{[3]string{"3", "2", "1"}, "R"},
+		{[3]string{"1", "2", "3"}, "G"},
+		{[3]string{"1", "2", "-3"}, "B"},
+		{[3]string{"1", "2", "auto"}, "B"},
+		{[3]string{"-1", "auto", "-2"}, "B"},
+	}
+	for _, tt := range tests {
+		t.Run(strings.Join(tt.zIndexes[:], " "), func(t *testing.T) {
+			t.Skip("backgrounds of boxes nested in absolutely positioned boxes are not laid out")
+			row := strings.Repeat(tt.color, 10)
+			expected := strings.TrimSuffix(strings.Repeat(row+"\n", 10), "\n")
+			html := fmt.Sprintf(zIndexSource, tt.zIndexes[0], tt.zIndexes[1], tt.zIndexes[2])
+			testutil.AssertPixels(t, expected, html)
+		})
 	}
 }
