@@ -112,8 +112,12 @@ func ComputeAll(doc *html.Document, opts Options) (*StyleFor, error) {
 	if env.FontConfig == nil {
 		env.FontConfig = fonts.NewFontConfiguration()
 	}
+	// Styles the user sheets already registered keep precedence over the
+	// predefined ones; author sheets are parsed below and replace them.
 	for name, style := range UACounterStyle() {
-		env.CounterStyle[name] = style
+		if _, defined := env.CounterStyle[name]; !defined {
+			env.CounterStyle[name] = style
+		}
 	}
 
 	var sheets []SheetEntry

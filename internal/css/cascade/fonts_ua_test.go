@@ -160,3 +160,47 @@ func TestInvalidCounterStyles(t *testing.T) {
 		}
 	}
 }
+
+func TestCounterStyleDefinitionsOverridePredefinedOnes(t *testing.T) {
+	const rule = `@counter-style lower-roman { system: cyclic; symbols: "*" }`
+	symbols := func(t *testing.T, env *cascade.Environment) []string {
+		t.Helper()
+		style, ok := env.CounterStyle["lower-roman"]
+		if !ok {
+			t.Fatal("lower-roman is not defined")
+		}
+		var out []string
+		for _, s := range style.Symbols {
+			out = append(out, s.Value)
+		}
+		return out
+	}
+
+	t.Run("user", func(t *testing.T) {
+		env := &cascade.Environment{CounterStyle: counters.Registry{}}
+		user := cascade.ParseStylesheet(rule, "", env)
+		doc := csstest.Parse(t, `<p>`)
+		csstest.StyleFor(t, doc, cascade.Options{Environment: env, UserStylesheets: []*cascade.Stylesheet{user}})
+		if got := symbols(t, env); !slices.Equal(got, []string{"*"}) {
+			t.Errorf("symbols = %q, want the user's", got)
+		}
+	})
+
+	t.Run("author", func(t *testing.T) {
+		env := &cascade.Environment{CounterStyle: counters.Registry{}}
+		doc := csstest.Parse(t, `<style>`+rule+`</style><p>`)
+		csstest.StyleFor(t, doc, cascade.Options{Environment: env})
+		if got := symbols(t, env); !slices.Equal(got, []string{"*"}) {
+			t.Errorf("symbols = %q, want the author's", got)
+		}
+	})
+
+	t.Run("none", func(t *testing.T) {
+		env := &cascade.Environment{CounterStyle: counters.Registry{}}
+		csstest.StyleFor(t, csstest.Parse(t, `<p>`), cascade.Options{Environment: env})
+		// The predefined lower-roman is an additive style without symbols.
+		if got := symbols(t, env); len(got) != 0 {
+			t.Errorf("symbols = %q, want the predefined style", got)
+		}
+	})
+}
