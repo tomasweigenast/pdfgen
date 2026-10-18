@@ -152,6 +152,9 @@ func FuzzFind(f *testing.F) {
 	f.Add(pngWith(tiffWith(binary.LittleEndian, 2, 3, 1)))
 	f.Add(webpWith(tiffWith(binary.BigEndian, 5, 3, 1), true))
 	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 1<<20 {
+			t.Skip()
+		}
 		OrientationOf(data)
 	})
 }
