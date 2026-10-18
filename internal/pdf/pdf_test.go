@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
+
 	"github.com/tomasweigenast/pdfgen/internal/pdf"
 	"github.com/tomasweigenast/pdfgen/internal/testutil"
 	"github.com/tomasweigenast/pdfgen/internal/testutil/boxtest"
 )
 
 // writePDF lays out source and writes it as an uncompressed PDF file.
-func writePDF(t *testing.T, source string, opts pdf.Options) []byte {
+func writePDF(t *testing.T, source string, opts pdf.Options, boxOpts ...boxtest.Option) []byte {
 	t.Helper()
-	doc := boxtest.FakeHTML(t, source)
+	doc := boxtest.FakeHTML(t, source, boxOpts...)
 	pages := doc.RenderPages(t)
 	opts.Uncompressed = true
 	var out bytes.Buffer
@@ -56,5 +59,28 @@ func TestPageBoxesWithBleed(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLinksOutlinesAndDestinationsAreAcceptedByPDFParser(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	out := writePDF(t, `
+		<title>Test document</title>
+		<style>h1, a { display: block; height: 20pt; break-after: page }</style>
+		<h1 id="a">one</h1>
+		<h1 id="b">two</h1>
+		<h1>three</h1>
+		<a href="#b">to b</a>
+		<a href="https://example.org/">example</a>`, pdf.Options{})
+
+	api.DisableConfigDir()
+	conf := model.NewDefaultConfiguration()
+	conf.ValidationMode = model.ValidationRelaxed
+	ctx, err := api.ReadValidateAndOptimize(bytes.NewReader(out), conf)
+	if err != nil {
+		t.Fatalf("PDF parser rejects the output: %v", err)
+	}
+	if ctx.PageCount != 5 {
+		t.Errorf("page count = %d, want 5", ctx.PageCount)
 	}
 }

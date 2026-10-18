@@ -5,7 +5,9 @@ import (
 	"io"
 	"math"
 
+	"github.com/tomasweigenast/pdfgen/internal/pdf/anchors"
 	"github.com/tomasweigenast/pdfgen/internal/pdf/fonts"
+	"github.com/tomasweigenast/pdfgen/internal/pdf/metadata"
 	"github.com/tomasweigenast/pdfgen/internal/pdf/stream"
 	"github.com/tomasweigenast/pdfgen/internal/pdf/writer"
 )
@@ -52,9 +54,25 @@ func Generate(doc *Document, w io.Writer, opts Options) error {
 	res := stream.NewResources(colorSpaces)
 	res.Fonts = fonts.NewRegistry(false)
 
-	for _, page := range doc.Pages {
-		file.AddPage(paintPage(file, page, res, resourcesRef, scale, compress))
+	data := make([]*anchors.Data, len(doc.Pages))
+	for i, page := range doc.Pages {
+		data[i] = &page.Data
 	}
+	resolved := anchors.ResolveLinks(data)
+
+	var destinations []anchors.NamedDestination
+	for i, page := range doc.Pages {
+		dict := paintPage(file, page, res, resourcesRef, scale, compress)
+		m := pageMatrix(scale, page.Height)
+		if annots := anchors.AddLinks(file, resolved[i].Links, m); len(annots) > 0 {
+			dict.Set("Annots", annots)
+		}
+		ref := file.AddPage(dict)
+		destinations = append(destinations, anchors.Destinations(resolved[i].Destinations, ref, m)...)
+	}
+	anchors.AddOutlines(file, doc.BookmarkTree(scale, true), file.PageRefs())
+	anchors.SetNameTree(file.Catalog(), destinations)
+	metadata.SetInfo(file.Info(), file.Catalog(), doc.Metadata)
 
 	fontDict, err := res.Fonts.Build(file, fonts.BuildOptions{Compress: compress, PDFVersion: opts.PDFVersion})
 	if err != nil {
