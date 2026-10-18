@@ -35,12 +35,11 @@ func TestEmptyLineboxRemovedSpace(t *testing.T) {
 }
 
 func TestBreakingLinebox(t *testing.T) {
-	requireSansFonts(t)
-	d := renderPage(t, fmt.Sprintf(`
+	d := renderPage(t, `
       <style>
       p { font-size: 13px;
           width: 300px;
-          font-family: %s;
+          font-family: testfont;
           background-color: #393939;
           color: #FFFFFF;
           line-height: 1;
@@ -49,9 +48,11 @@ func TestBreakingLinebox(t *testing.T) {
       <p><em>Lorem<strong> Ipsum <span>is very</span>simply</strong><em>
       dummy</em>text of the printing and. naaaa </em> naaaa naaaa naaaa
       naaaa naaaa naaaa naaaa naaaa</p>
-    `, sansFamilies))
+    `)
 	paragraph := kids(t, d.body(t), 1)[0]
-	lines := kids(t, paragraph, 3)
+	// Every glyph of the test font is one em wide, so a line of 300px holds
+	// 23 characters of 13px.
+	lines := kids(t, paragraph, 5)
 	for _, line := range lines {
 		if line.Base().Style.FontSize() != 13 || line.Base().ElementTag != "p" {
 			t.Errorf("line %v: font size %v, tag %q", line, line.Base().Style.FontSize(), line.Base().ElementTag)
@@ -472,16 +473,15 @@ func TestBreakingLineboxRegression14(t *testing.T) {
 }
 
 func TestLineboxText(t *testing.T) {
-	requireSansFonts(t)
-	d := renderPage(t, fmt.Sprintf(`
+	d := renderPage(t, `
       <style>
-        p { width: 165px; font-family:%s;}
+        p { width: 165px; font-family: testfont }
       </style>
       <p><em>Lorem Ipsum</em>is very <strong>coool</strong></p>
-    `, sansFamilies))
+    `)
 	lines := boxes.ChildrenOf(kids(t, d.body(t), 1)[0])
-	if len(lines) != 2 {
-		t.Fatalf("%d lines, want 2", len(lines))
+	if len(lines) != 3 {
+		t.Fatalf("%d lines, want 3", len(lines))
 	}
 	var parts []string
 	for _, line := range lines {
@@ -493,18 +493,17 @@ func TestLineboxText(t *testing.T) {
 }
 
 func TestLineboxPositions(t *testing.T) {
-	requireSansFonts(t)
 	for _, tt := range []struct {
 		width float64
 		lines int
-	}{{165, 2}, {1, 5}, {0, 5}} {
+	}{{165, 3}, {1, 5}, {0, 5}} {
 		t.Run(fmt.Sprint(tt.width), func(t *testing.T) {
 			d := renderPage(t, fmt.Sprintf(`
           <style>
-            p { width:%gpx; font-family:%s;
+            p { width:%gpx; font-family: testfont;
                 line-height: 20px }
           </style>
-          <p>this is test for <strong>Wrapsinety</strong></p>`, tt.width, sansFamilies))
+          <p>this is test for <strong>Wrapsinety</strong></p>`, tt.width))
 			lines := boxes.ChildrenOf(kids(t, d.body(t), 1)[0])
 			if len(lines) != tt.lines {
 				t.Fatalf("%d lines, want %d", len(lines), tt.lines)
@@ -577,14 +576,13 @@ func TestForcedLineBreaksParagraph(t *testing.T) {
 
 func TestInlineBoxSplitting(t *testing.T) {
 	// The text is strange to test some corner cases.
-	requireSansFonts(t)
 	for _, width := range []int{10000, 100, 10, 0} {
 		t.Run(fmt.Sprint(width), func(t *testing.T) {
 			d := renderPage(t, fmt.Sprintf(`
-          <style>p { font-family:%s; width: %dpx; }</style>
+          <style>p { font-family: testfont; width: %dpx; }</style>
           <p><strong>Wrapsinety is a frée softwäre ./ visual rendèring enginè
                      for HTML !!! and CSS.</strong></p>
-        `, sansFamilies, width))
+        `, width))
 			lines := boxes.ChildrenOf(kids(t, d.body(t), 1)[0])
 			if (width == 10000) != (len(lines) == 1) {
 				t.Fatalf("%d lines at width %d", len(lines), width)
@@ -1070,14 +1068,19 @@ func TestVerticalAlign13(t *testing.T) {
 }
 
 func TestFontStretch(t *testing.T) {
-	requireSansFonts(t)
 	d := renderPage(t, fmt.Sprintf(`
       <style>
-        p { float: left; font-family: %s }
+        @font-face { font-family: stretchy; src: url(testfont.otf) }
+        @font-face {
+          font-family: stretchy;
+          src: url(%s);
+          font-stretch: condensed;
+        }
+        p { float: left; font-family: stretchy }
       </style>
       <p>Hello, world!</p>
       <p style="font-stretch: condensed">Hello, world!</p>
-    `, sansFamilies))
+    `, condensedTestFontURL(t)))
 	ps := kids(t, d.body(t), 2)
 	normal, condensed := ps[0].Base().Width.V, ps[1].Base().Width.V
 	if condensed >= normal {

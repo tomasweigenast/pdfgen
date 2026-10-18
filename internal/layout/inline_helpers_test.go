@@ -1,11 +1,14 @@
 package layout
 
 import (
+	"encoding/base64"
+	"encoding/binary"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/tomasweigenast/pdfgen/internal/boxes"
-	"github.com/tomasweigenast/pdfgen/internal/text/fonts"
+	"github.com/tomasweigenast/pdfgen/internal/testutil"
 	"github.com/tomasweigenast/pdfgen/internal/text/linebreak"
 )
 
@@ -60,19 +63,29 @@ func allText(box boxes.Box) string {
 	return out.String()
 }
 
-// sansFamilies are the fonts the tests that measure real text were written
-// for.
-const sansFamilies = "DejaVu Sans, sans"
-
-// requireSansFonts skips the test when the font it was written for is not
-// installed: the widths of its text, and so its line breaks, depend on it.
-func requireSansFonts(t *testing.T) {
+// condensedTestFontURL returns a data URL of the test font with every
+// advance width halved, so that a family can have a condensed face of its own.
+func condensedTestFontURL(t testing.TB) string {
 	t.Helper()
-	fc := fonts.NewFontConfiguration()
-	face := fc.Query(fonts.Description{Families: []string{"DejaVu Sans"}, Size: 16}, "", 'a')
-	if face == nil || face.Family != "DejaVu Sans" {
-		t.Skip("DejaVu Sans is not installed")
+	font, err := os.ReadFile(testutil.ResourcePath(t, "testfont.otf"))
+	if err != nil {
+		t.Fatalf("read the test font: %v", err)
 	}
+	tables := make(map[string][2]int)
+	for i := range int(binary.BigEndian.Uint16(font[4:])) {
+		record := font[12+16*i:]
+		tables[string(record[:4])] = [2]int{int(binary.BigEndian.Uint32(record[8:])), int(binary.BigEndian.Uint32(record[12:]))}
+	}
+	hhea, hmtx := tables["hhea"], tables["hmtx"]
+	if hhea[1] < 36 || hmtx[1] == 0 {
+		t.Fatalf("the test font has no horizontal metrics: %v", tables)
+	}
+	metrics := int(binary.BigEndian.Uint16(font[hhea[0]+34:]))
+	for i := range metrics {
+		advance := font[hmtx[0]+4*i:]
+		binary.BigEndian.PutUint16(advance, binary.BigEndian.Uint16(advance)/2)
+	}
+	return "data:font/otf;base64," + base64.StdEncoding.EncodeToString(font)
 }
 
 // newLayoutText returns the text layout context of the fonts that the style
