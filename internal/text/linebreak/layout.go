@@ -35,6 +35,9 @@ type Run struct {
 	// Glyphs are in visual order. Advances include letter-spacing,
 	// word-spacing and tab stops.
 	Glyphs []Glyph
+	// Ellipsis is the text an inserted ellipsis stands for: "…" or "...".
+	// It is empty for the runs of the text.
+	Ellipsis string
 
 	item    *item
 	tab     bool
@@ -138,7 +141,11 @@ type Layout struct {
 	// zero for separators.
 	spaced        []bool
 	insertHyphens bool
-	tabStop       int // distance between tab stops in 1/1024 px
+	// ellipsizeWidth is the width, in 1/1024 px, the first line is cut to
+	// when ellipsize is set.
+	ellipsize      bool
+	ellipsizeWidth int
+	tabStop        int // distance between tab stops in 1/1024 px
 
 	attrs []logAttr
 	lines []*Line
@@ -347,6 +354,9 @@ func (l *Layout) build() {
 		if len(l.lines) >= 2 {
 			break
 		}
+	}
+	if l.ellipsize && len(l.lines) > 0 {
+		l.ellipsizeLine(l.lines[0])
 	}
 }
 
