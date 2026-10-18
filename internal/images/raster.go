@@ -55,20 +55,29 @@ type Raster struct {
 
 // NewRaster decodes an image file. id names the image's XObject, so it must
 // be unique per distinct image. A JPEG file is kept as it is unless the
-// orientation or the options ask for a change; anything else is decoded.
+// orientation (including the presence of Exif data when it comes from the
+// image) or the options ask for a change; anything else is decoded.
 func NewRaster(id string, data []byte, orientation Orientation, opts Options) (*Raster, error) {
 	r := &Raster{id: id, opts: opts}
 
+	isJPEG := bytes.HasPrefix(data, []byte{0xff, 0xd8})
+
 	angle, flip := orientation.Angle, orientation.Flip
+	// Applying the orientation of a JPEG that has an Exif block always
+	// produces a new image, even when the block says it is upright, so the
+	// file is recompressed instead of embedded as it is.
+	transformed := false
 	if orientation.FromImage {
 		angle, flip = 0, false
-		if v, ok := exif.OrientationOf(data); ok {
-			angle, flip = exifTransform(v)
+		if tiff, ok := exif.Find(data); ok {
+			if v, ok := exif.Orientation(tiff); ok {
+				angle, flip = exifTransform(v)
+			}
+			transformed = isJPEG
 		}
 	}
-	transformed := angle != 0 || flip
+	transformed = transformed || angle != 0 || flip
 
-	isJPEG := bytes.HasPrefix(data, []byte{0xff, 0xd8})
 	var passthrough pixmap
 	if isJPEG {
 		info, err := scanJPEG(data)

@@ -141,3 +141,39 @@ func TestRotatingAnImageTwiceGivesTheOriginal(t *testing.T) {
 		t.Errorf("pixels %v", got)
 	}
 }
+
+// withExif inserts an Exif segment right after the start of image marker.
+func withExif(t testing.TB, jpegData, tiff []byte) []byte {
+	t.Helper()
+	body := append([]byte("Exif\x00\x00"), tiff...)
+	segment := []byte{0xff, 0xe1, byte((len(body) + 2) >> 8), byte(len(body) + 2)}
+	segment = append(segment, body...)
+	return append(append(append([]byte{}, jpegData[:2]...), segment...), jpegData[2:]...)
+}
+
+func TestJPEGWithUprightExifIsRecompressed(t *testing.T) {
+	plain := readResource(t, "not-optimized.jpg")
+	data := withExif(t, plain, exifTIFF(1))
+
+	explicit, err := NewRaster("explicit", data, Orientation{}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(explicit.jpeg, data) {
+		t.Error("an explicit orientation must keep the file")
+	}
+
+	fromImage, err := NewRaster("exif", data, OrientationFromImage, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(fromImage.jpeg, data) {
+		t.Fatal("the JPEG was embedded unchanged")
+	}
+	if fromImage.width != explicit.width || fromImage.height != explicit.height {
+		t.Errorf("size = %dx%d, want %dx%d", fromImage.width, fromImage.height, explicit.width, explicit.height)
+	}
+	if got := dictName(embed(t, fromImage, false, 1).obj.Dict, "Filter"); got != "DCTDecode" {
+		t.Errorf("filter = %v", got)
+	}
+}
