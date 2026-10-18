@@ -26,7 +26,7 @@ func drawBorder(s *stream.Stream, box boxes.Box) {
 		drawColumnRules(s, box)
 	}
 
-	if style.BorderImageSource().Type != "none" && base.BorderImage != nil {
+	if sourceImage(base.BorderImage, style.BorderImageSource(), style) != nil {
 		drawBorderImage(s, box)
 		return
 	}
