@@ -7,6 +7,9 @@ import (
 	"os"
 	"testing"
 
+	gtfont "github.com/go-text/typesetting/font"
+	ot "github.com/go-text/typesetting/font/opentype/tables"
+
 	"github.com/tomasweigenast/pdfgen/internal/testutil"
 )
 
@@ -332,5 +335,58 @@ func TestStripInstructionsOfCompositeGlyph(t *testing.T) {
 	}
 	if flags := binary.BigEndian.Uint16(got[18:]); flags&0x100 != 0 {
 		t.Errorf("last component flags = %#x, instructions bit still set", flags)
+	}
+}
+
+// TestSubsetKeepsCmapOfRetainedGlyphs checks that code points still reach the
+// glyphs they did in the source, now under the renumbered glyph indices.
+// Rasterizers that look for a character map before drawing a CIDFontType2
+// program place and shape glyphs differently without one.
+func TestSubsetKeepsCmapOfRetainedGlyphs(t *testing.T) {
+	for name, data := range map[string][]byte{"cff": testFont(t), "truetype": systemTrueType(t)} {
+		t.Run(name, func(t *testing.T) {
+			f, err := Parse(data, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			glyphs := []uint16{0}
+			want := map[rune]uint16{}
+			for r := 'A'; r <= 'z' && len(glyphs) < 5; r++ {
+				gid := f.sfnt.Cmap.Get(r)
+				if gid == 0 {
+					continue
+				}
+				want[r] = uint16(len(glyphs))
+				glyphs = append(glyphs, gid)
+			}
+			if len(want) == 0 {
+				t.Skip("font maps none of the probe characters")
+			}
+			out, err := f.Subset(glyphs, Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			tables, _, err := readTables(out, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, ok := tables["cmap"]
+			if !ok {
+				t.Fatal("subset has no cmap")
+			}
+			parsed, _, err := ot.ParseCmap(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmap, _, err := gtfont.ProcessCmap(parsed, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for r, gid := range want {
+				if got, _ := cmap.Lookup(r); uint16(got) != gid {
+					t.Errorf("cmap(%q) = %d, want %d", r, got, gid)
+				}
+			}
+		})
 	}
 }

@@ -113,7 +113,10 @@ func (f *Font) Subset(glyphs []uint16, opts Options) ([]byte, error) {
 		seen[g] = true
 	}
 
-	tags := []string{"head", "hhea", "hmtx", "maxp"}
+	// The cmap is not required by CIDFontType2 with an identity CIDToGIDMap
+	// (ISO 32000-1 section 9.7.4.2), but Ghostscript draws such programs
+	// differently when it is missing.
+	tags := []string{"cmap", "head", "hhea", "hmtx", "maxp"}
 	if f.sfnt.IsCFF {
 		tags = append(tags, "CFF ")
 	} else {
