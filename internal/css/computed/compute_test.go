@@ -2,6 +2,8 @@ package computed
 
 import (
 	"math"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/tomasweigenast/pdfgen/internal/css/props"
@@ -126,6 +128,108 @@ func TestLengthsAreComputedToPixels(t *testing.T) {
 	}
 	if got := s.Height(); got.Calc == nil {
 		t.Errorf("height = %v, want a math function", got)
+	}
+}
+
+func TestComputedValuesFromUnitsAndFunctions(t *testing.T) {
+	s := family(t, "font-size: 20px; line-height: 1.5", "font-size: 120%; line-height: normal; width: calc(2em + 5px); height: min(20px, 10rem); margin-left: max(2ex, 3ch); padding-top: clamp(1px, 2lh, 20px)")[1]
+	if got := s.FontSize(); got != 24 {
+		t.Errorf("font-size = %v, want 24px", got)
+	}
+	if got := s.LineHeight(); got.Keyword != "normal" {
+		t.Errorf("line-height = %v, want normal", got)
+	}
+	if got := s.Width(); got != props.Px(53) {
+		t.Errorf("width = %v, want 53px", got)
+	}
+	if got := s.Height(); got != props.Px(20) {
+		t.Errorf("height = %v, want 20px", got)
+	}
+	if got := s.MarginLeft(); got != props.Px(36) {
+		t.Errorf("margin-left = %v, want 36px", got)
+	}
+	if got := s.PaddingTop(); got != props.Px(20) {
+		t.Errorf("padding-top = %v, want 20px", got)
+	}
+}
+
+func TestGeneratedGettersMatchPropertyValues(t *testing.T) {
+	s := family(t, "", "color: red; display: inline; width: 12px; opacity: .5")[1]
+	value := reflect.ValueOf(s)
+	checked := 0
+	for id := props.PropID(0); int(id) < props.NumProps(); id++ {
+		var name strings.Builder
+		upper := true
+		for _, r := range id.Name() {
+			if r == '-' {
+				upper = true
+				continue
+			}
+			if upper {
+				r = []rune(strings.ToUpper(string(r)))[0]
+				upper = false
+			}
+			name.WriteRune(r)
+		}
+		method := value.MethodByName(name.String())
+		if !method.IsValid() {
+			continue
+		}
+		got := method.Call(nil)[0].Interface()
+		want := s.Get(id)
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s() = %#v, Get(%q) = %#v", name.String(), got, id.Name(), want)
+		}
+		checked++
+	}
+	if checked < props.NumProps()-10 {
+		t.Fatalf("checked %d generated getters for %d properties", checked, props.NumProps())
+	}
+}
+
+func TestComputedImagesPositionAndGeneratedContent(t *testing.T) {
+	s := family(t, "", "background-image: linear-gradient(red, blue); background-position: right 2px bottom 3px; background-size: 10px auto; box-shadow: 1px 2px 3px red; color-scheme: light dark; break-before: page; bleed-top: 2mm; column-gap: 2em; border-image-outset: 2; border-image-source: url(https://example.com/thing.png); image-orientation: 90deg; object-position: right 2px bottom 3px; vertical-align: 2em; transform: translateX(1em); content: 'chapter'; bookmark-label: content(); string-set: title content(); grid-template-columns: 10px 1fr; grid-auto-rows: auto")[1]
+	if got := s.BackgroundImage(); len(got) != 1 || got[0].Type != "linear-gradient" {
+		t.Errorf("background-image = %v", got)
+	}
+	if got := s.BackgroundPosition(); len(got) != 1 || got[0].X != props.Px(2) {
+		t.Errorf("background-position = %v", got)
+	}
+	if got := s.BackgroundSize(); len(got) != 1 || got[0].Width != props.Px(10) {
+		t.Errorf("background-size = %v", got)
+	}
+	if got := s.BoxShadow(); len(got) != 1 || got[0].X != props.Px(1) {
+		t.Errorf("box-shadow = %v", got)
+	}
+	if got := s.ColorScheme(); len(got) != 2 || got[0] != "light" || got[1] != "dark" {
+		t.Errorf("color-scheme = %v", got)
+	}
+	if got := s.BreakBefore(); got != "page" || math.Abs(float64(s.BleedTop().Dimension.Value)-96.0/25.4*2) > 1e-9 || s.ColumnGap() != props.Px(32) {
+		t.Errorf("break-before = %q, bleed-top = %v, column-gap = %v", got, s.BleedTop(), s.ColumnGap())
+	}
+	if got := s.BorderImageOutset(); got[0].Dimension.Value != 2 {
+		t.Errorf("border-image-outset = %v", got)
+	}
+	if got := s.BorderImageSource(); got.URL != "https://example.com/thing.png" {
+		t.Errorf("border-image-source = %v", got)
+	}
+	if got := s.ImageOrientation(); got.Angle != 90 {
+		t.Errorf("image-orientation = %v", got)
+	}
+	if got := s.Content(); len(got.Items) != 1 || got.Items[0].Args[0] != "chapter" {
+		t.Errorf("content = %v", got)
+	}
+	if got := s.BookmarkLabel(); len(got) == 0 || len(s.StringSet()) == 0 {
+		t.Errorf("bookmark-label = %v, string-set = %v", got, s.StringSet())
+	}
+	if got := s.GridTemplateColumns(); len(got.Items) == 0 || len(s.GridAutoRows()) == 0 {
+		t.Errorf("grid tracks = %v / %v", got, s.GridAutoRows())
+	}
+	if got := s.VerticalAlign(); got != props.Px(32) {
+		t.Errorf("vertical-align = %v", got)
+	}
+	if got := s.Transform(); len(got) == 0 {
+		t.Errorf("transform = %v", got)
 	}
 }
 
