@@ -162,6 +162,38 @@ func TestMaxLinesEllipsis(t *testing.T) {
 
 func TestMaxLinesNested(t *testing.T) {
 	t.Skip("not supported: nested max-lines with continue: discard")
+	testutil.AssertPixels(t, `
+		BBBBBBBBBB
+		BBBBBBBBBB
+		BBBBBBBBBB
+		BBBBBBBBBB
+		rrrrrrrrrr
+		rrrrrrrrrr
+		rrrrrrrrrr
+		rrrrrrrrrr
+		BBBBBBBBBB
+		BBBBBBBBBB
+		__________
+		__________
+	`, `
+		<style>
+			@page { size: 10px 12px }
+			div { continue: discard; font-family: testfont; font-size: 2px }
+			#a { color: blue; max-lines: 5 }
+			#b { color: red; max-lines: 2 }
+		</style>
+		<div id=a>
+			aaaaa
+			aaaaa
+			<div id=b>
+				bbbbb
+				bbbbb
+				bbbbb
+				bbbbb
+			</div>
+			aaaaa
+			aaaaa
+		</div>`)
 }
 
 func TestLineClamp(t *testing.T) {
@@ -309,7 +341,30 @@ func TestLineClampNestedAfter(t *testing.T) {
 }
 
 func TestEllipsisNested(t *testing.T) {
-	t.Skip("not supported: block-ellipsis across nested blocks")
+	testutil.AssertPixels(t, `
+		BBBBBB____
+		BBBBBB____
+		BBBBBB____
+		BBBBBB____
+		BBBBBB____
+		BBBBBB____
+		BBBBBB____
+		BBBBBB____
+		BBBBBBBB__
+		BBBBBBBB__
+	`, `
+		<style>
+			@page { size: 10px 10px }
+			div { block-ellipsis: auto; color: blue; continue: discard; font-family: testfont; font-size: 2px }
+		</style>
+		<div>
+			<p>aaa</p>
+			<p>aaa</p>
+			<p>aaa</p>
+			<p>aaa</p>
+			<p>aaa</p>
+			<p>aaa</p>
+		</div>`)
 }
 
 func TestTextAlignRight(t *testing.T) {
@@ -538,14 +593,65 @@ func TestTextNestedTextDecoration(t *testing.T) {
 
 func TestTextNestedTextDecorationColor(t *testing.T) {
 	t.Skip("not supported: a nested decoration keeps the colour of the outer one")
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzzzzzzzz_
+		_zRRRRRRRRRz_
+		_zRRRGGGRRRz_
+		_zBBBBBBBBBz_
+		_zzzzzzzzzzz_
+		_____________
+	`, `
+		<style>
+			@page { size: 13px 7px; margin: 2px }
+			body { color: red; font-family: testfont; font-size: 3px; text-decoration: underline blue }
+			span { text-decoration: line-through lime }
+		</style>
+		<div>a<span>b</span>c</div>`)
 }
 
 func TestTextNestedBlockTextDecoration(t *testing.T) {
 	t.Skip("not supported: decorations are not propagated to nested blocks")
+	testutil.AssertPixels(t, `
+		_______
+		_zzzzz_
+		_zRRRz_
+		_zRRRz_
+		_zBBBz_
+		_zRRRz_
+		_zGGGz_
+		_zBBBz_
+		_zRRRz_
+		_zRRRz_
+		_zBBBz_
+		_zzzzz_
+		_______
+	`, `
+		<style>
+			@page { size: 7px 13px; margin: 2px }
+			body { color: red; font-family: testfont; font-size: 3px; text-decoration: underline blue }
+			article { text-decoration: line-through lime }
+		</style>
+		<div>a<article>b</article>c</div>`)
 }
 
 func TestTextFloatTextDecoration(t *testing.T) {
 	t.Skip("not supported: decorations are not propagated to floats")
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzz_______
+		_zRRRz__RRR__
+		_zRRRz__RRR__
+		_zBBBz__RRR__
+		_zzzzz_______
+		_____________
+	`, `
+		<style>
+			@page { size: 13px 7px; margin: 2px }
+			div { color: red; font-family: testfont; font-size: 3px; text-decoration: underline blue }
+			span { float: right }
+		</style>
+		<div>a<span>b</span></div>`)
 }
 
 func TestTextDecorationVar(t *testing.T) {
