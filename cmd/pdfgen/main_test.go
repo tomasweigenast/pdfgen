@@ -40,6 +40,16 @@ func buildAndRun(m *testing.M) int {
 	return m.Run()
 }
 
+// fileURL returns the file: URL of an absolute path, with the leading
+// slash that a Windows drive path needs before its letter.
+func fileURL(path string) string {
+	p := filepath.ToSlash(path)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return "file://" + p
+}
+
 type result struct {
 	stdout, stderr []byte
 	exit           int
@@ -181,7 +191,7 @@ func TestStylesheetOption(t *testing.T) {
 		args []string
 	}{
 		{"both given with -s", []string{"-s", size, "-s", margin}},
-		{"long name and a URL", []string{"--stylesheet", "file://" + filepath.ToSlash(size), "--stylesheet=" + margin}},
+		{"long name and a URL", []string{"--stylesheet", fileURL(size), "--stylesheet=" + margin}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
