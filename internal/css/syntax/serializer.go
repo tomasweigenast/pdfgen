@@ -144,6 +144,12 @@ func SerializeURL(s string) string {
 		case ')':
 			b.WriteString(`\)`)
 		default:
+			if c < 0x20 || c == 0x7f {
+				b.WriteByte('\\')
+				b.WriteString(strconv.FormatInt(int64(c), 16))
+				b.WriteByte(' ')
+				continue
+			}
 			b.WriteRune(c)
 		}
 	}
