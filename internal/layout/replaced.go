@@ -62,6 +62,13 @@ func defaultImageSizing(
 	return containConstraintImageSizing(defaultWidth, defaultHeight, intrinsicRatio)
 }
 
+// DefaultImageSizing returns the concrete size of an image that has no
+// specified size, given its intrinsic size and ratio and the size to use
+// when it has nothing to go by (CSS Images 3 §5.3).
+func DefaultImageSizing(intrinsicWidth, intrinsicHeight, intrinsicRatio units.MaybeFloat, defaultWidth, defaultHeight float64) (width, height float64) {
+	return defaultImageSizing(intrinsicWidth, intrinsicHeight, intrinsicRatio, units.Auto, units.Auto, defaultWidth, defaultHeight)
+}
+
 // containConstraintImageSizing returns the largest size with the ratio that
 // fits in the constraint (CSS Images 3 §5.4).
 func containConstraintImageSizing(constraintWidth, constraintHeight float64, ratio units.MaybeFloat) (width, height float64) {
