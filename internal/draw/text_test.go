@@ -1,6 +1,7 @@
 package draw_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/tomasweigenast/pdfgen/internal/testutil"
@@ -309,4 +310,253 @@ func TestLineClampNestedAfter(t *testing.T) {
 
 func TestEllipsisNested(t *testing.T) {
 	t.Skip("not supported: block-ellipsis across nested blocks")
+}
+
+func TestTextAlignRight(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_________
+		__RR__RR_
+		__RR__RR_
+		______RR_
+		______RR_
+		_________
+	`, `
+		<style>
+			@page { size: 9px 6px }
+			body { color: red; font-family: testfont; font-size: 2px }
+			div { line-height: 1; margin: 1px; text-align: right }
+		</style>
+		<div>a c e</div>`)
+}
+
+func TestTextAlignJustify(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_________
+		_RR___RR_
+		_RR___RR_
+		_RR______
+		_RR______
+		_________
+	`, `
+		<style>
+			@page { size: 9px 6px }
+			body { color: red; font-family: testfont; font-size: 2px }
+			div { line-height: 1; margin: 1px; text-align: justify }
+		</style>
+		<div>a c e</div>`)
+}
+
+func TestTextAlignJustifyNbsp(t *testing.T) {
+	testutil.AssertPixels(t, `
+		___________________
+		_RR___RR___RR___RR_
+		_RR___RR___RR___RR_
+		___________________
+	`, `
+		<style>
+			@page { size: 19px 4px }
+			body { color: red; font-family: testfont; font-size: 2px }
+			div { line-height: 1; margin: 1px; text-align: justify-all }
+		</style>
+		<div>a b&nbsp;c&nbsp;d</div>`)
+}
+
+func TestTextWordSpacing(t *testing.T) {
+	testutil.AssertPixels(t, `
+		___________________
+		_RR____RR____RR____
+		_RR____RR____RR____
+		___________________
+	`, `
+		<style>
+			@page { size: 19px 4px }
+			body { color: red; font-family: testfont; font-size: 2px }
+			div { line-height: 1; margin: 1px; word-spacing: 1em }
+		</style>
+		<div>a c e</div>`)
+}
+
+func TestTextLetterSpacing(t *testing.T) {
+	testutil.AssertPixels(t, `
+		___________________
+		_RR____RR____RR____
+		_RR____RR____RR____
+		___________________
+	`, `
+		<style>
+			@page { size: 19px 4px }
+			body { color: red; font-family: testfont; font-size: 2px }
+			div { line-height: 1; margin: 1px; letter-spacing: 2em }
+		</style>
+		<div>ace</div>`)
+}
+
+// decorated renders abc in a 13px wide page whose margin is 2px, with the
+// body style given.
+func decorated(height int, bodyCSS string, extraCSS ...string) string {
+	extra := ""
+	for _, c := range extraCSS {
+		extra += c
+	}
+	return fmt.Sprintf(`
+		<style>
+			@page { size: 13px %dpx; margin: 2px }
+			body { font-family: testfont; font-size: 3px; %s }
+			%s
+		</style>
+		<div>abc</div>`, height, bodyCSS, extra)
+}
+
+func TestTextUnderline(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzzzzzzzz_
+		_zsssssssssz_
+		_zsssssssssz_
+		_zuuuuuuuuuz_
+		_zzzzzzzzzzz_
+		_____________
+	`, decorated(7, "color: rgba(255, 0, 0, 0.5); text-decoration: underline blue auto"))
+}
+
+func TestTextUnderlineOffset(t *testing.T) {
+	for _, offset := range []string{"2px", "70%", "calc(0.5em + 20%)"} {
+		t.Run(offset, func(t *testing.T) {
+			testutil.AssertPixels(t, `
+				_____________
+				_zzzzzzzzzzz_
+				_zRRRRRRRRRz_
+				_zRRRRRRRRRz_
+				_zzzzzzzzzzz_
+				_zzzzzzzzzzz_
+				_zBBBBBBBBBz_
+				_zzzzzzzzzzz_
+				_____________
+			`, decorated(9, "color: red; text-decoration: underline blue; text-underline-offset: "+offset))
+		})
+	}
+}
+
+func TestTextUnderlineThickness(t *testing.T) {
+	for _, thickness := range []string{"3px", "100%", "calc(0.5em + 50%)"} {
+		t.Run(thickness, func(t *testing.T) {
+			testutil.AssertPixels(t, `
+				_____________
+				_zzzzzzzzzzz_
+				_zRRRRRRRRRz_
+				_zRRRRRRRRRz_
+				_zzzzzzzzzzz_
+				_zzzzzzzzzzz_
+				_zBBBBBBBBBz_
+				_zBBBBBBBBBz_
+				_zzzzzzzzzzz_
+			`, decorated(9, "color: red; text-decoration: underline blue "+thickness+"; text-underline-offset: 2px"))
+		})
+	}
+}
+
+func TestTextUnderlineThicknessCalcInherit(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzzzzzzzz_
+		_zRRRRRRRRRz_
+		_zRRRRRRRRRz_
+		_zzzzzzzzzzz_
+		_zzzzzzzzzzz_
+		_zBBBBBBBBBz_
+		_zBBBBBBBBBz_
+		_zzzzzzzzzzz_
+	`, `
+		<style>
+			@page { size: 13px 9px; margin: 2px }
+			body {
+				color: red; font-family: testfont; font-size: 3px;
+				text-decoration: underline blue max(1rem, 1px);
+				text-underline-offset: 2px
+			}
+			div::after { content: "abc" }
+		</style>
+		<div></div>`)
+}
+
+func TestTextOverline(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzzzzzzzz_
+		_zzzzzzzzzzz_
+		_zsssssssssz_
+		_zsssssssssz_
+		_zzzzzzzzzzz_
+		_____________
+	`, decorated(7, "color: rgba(255, 0, 0, 0.5); text-decoration: overline blue"))
+}
+
+func TestTextLineThrough(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzzzzzzzz_
+		_zBBBBBBBBBz_
+		_zuuuuuuuuuz_
+		_zBBBBBBBBBz_
+		_zzzzzzzzzzz_
+		_____________
+	`, decorated(7, "color: blue; text-decoration: line-through rgba(255, 0, 0, 0.5)"))
+}
+
+func TestTextMultipleTextDecoration(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzzzzzzzz_
+		_zsssssssssz_
+		_zBBBBBBBBBz_
+		_zuuuuuuuuuz_
+		_zzzzzzzzzzz_
+		_____________
+	`, decorated(7, "color: rgba(255, 0, 0, 0.5); text-decoration: underline line-through blue"))
+}
+
+func TestTextNestedTextDecoration(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzzzzzzzz_
+		_zsssssssssz_
+		_zsssBBBsssz_
+		_zuuuuuuuuuz_
+		_zzzzzzzzzzz_
+		_____________
+	`, `
+		<style>
+			@page { size: 13px 7px; margin: 2px }
+			body {
+				color: rgba(255, 0, 0, 0.5); font-family: testfont; font-size: 3px;
+				text-decoration: underline blue
+			}
+			span { text-decoration: line-through blue }
+		</style>
+		<div>a<span>b</span>c</div>`)
+}
+
+func TestTextNestedTextDecorationColor(t *testing.T) {
+	t.Skip("not supported: a nested decoration keeps the colour of the outer one")
+}
+
+func TestTextNestedBlockTextDecoration(t *testing.T) {
+	t.Skip("not supported: decorations are not propagated to nested blocks")
+}
+
+func TestTextFloatTextDecoration(t *testing.T) {
+	t.Skip("not supported: decorations are not propagated to floats")
+}
+
+func TestTextDecorationVar(t *testing.T) {
+	testutil.AssertPixels(t, `
+		_____________
+		_zzzzzzzzzzz_
+		_zRRRRRRRRRz_
+		_zBBBBBBBBBz_
+		_zRRRRRRRRRz_
+		_zzzzzzzzzzz_
+		_____________
+	`, decorated(7, `--blue: blue; color: red;
+		text-decoration-color: var(--blue); text-decoration-line: line-through`))
 }

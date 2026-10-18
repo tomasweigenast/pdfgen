@@ -2,12 +2,15 @@ package draw
 
 import (
 	"math"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/tomasweigenast/pdfgen/internal/boxes"
+	"github.com/tomasweigenast/pdfgen/internal/css/computed"
 	"github.com/tomasweigenast/pdfgen/internal/css/props"
 	"github.com/tomasweigenast/pdfgen/internal/css/syntax"
+	"github.com/tomasweigenast/pdfgen/internal/layout"
 	"github.com/tomasweigenast/pdfgen/internal/logging"
 	"github.com/tomasweigenast/pdfgen/internal/pdf/fonts"
 	"github.com/tomasweigenast/pdfgen/internal/pdf/stream"
@@ -22,22 +25,17 @@ const minFontSize = 1e-6
 // blockEllipsis are the values of the line that contains it.
 func drawText(s *stream.Stream, tb *boxes.TextBox, offsetX float64, textOverflow props.Keyword, blockEllipsis props.KeywordOrString) {
 	style := tb.Style
-	layout := tb.Layout
+	lay := tb.Layout
 	fontSize := float64(style.FontSize())
-	if layout == nil || fontSize < minFontSize || style.Visibility() != "visible" {
+	if lay == nil || fontSize < minFontSize || style.Visibility() != "visible" {
 		return
 	}
 
 	lines := style.TextDecorationLine()
 	hasLine := func(name props.Keyword) bool {
-		for _, l := range lines {
-			if l == name {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(lines, name)
 	}
-	metrics := layout.Metrics()
+	metrics := lay.Metrics()
 	baseline := 0.0
 	if tb.Baseline != nil {
 		baseline = *tb.Baseline
@@ -54,7 +52,7 @@ func drawText(s *stream.Stream, tb *boxes.TextBox, offsetX float64, textOverflow
 	if hasLine("underline") || hasLine("overline") {
 		thickness = unitsToPx(metrics.UnderlineThickness)
 		if t := style.TextDecorationThickness(); !t.IsKeyword() {
-			thickness = lengthOrPercent(t, fontSize)
+			thickness = lengthOrPercent(t, style, fontSize)
 		}
 	}
 	if hasLine("overline") {
@@ -63,13 +61,13 @@ func drawText(s *stream.Stream, tb *boxes.TextBox, offsetX float64, textOverflow
 	if hasLine("underline") {
 		offset := -unitsToPx(metrics.UnderlinePosition)
 		if o := style.TextUnderlineOffset(); !o.IsAuto() {
-			offset = lengthOrPercent(o, fontSize)
+			offset = lengthOrPercent(o, style, fontSize)
 		}
 		decorate(baseline+offset+thickness/2, thickness)
 	}
 
 	s.SetColor(getColor(style, props.PropColor), false)
-	layout.Reactivate(style.LineBreakStyle())
+	lay.Reactivate(style.LineBreakStyle())
 	s.BeginText()
 	drawFirstLine(s, tb, textOverflow, blockEllipsis, tb.PositionX, tb.PositionY+baseline)
 	s.EndText()
@@ -80,11 +78,11 @@ func drawText(s *stream.Stream, tb *boxes.TextBox, offsetX float64, textOverflow
 }
 
 // lengthOrPercent returns l in px, a percentage being of referTo.
-func lengthOrPercent(l props.Length, referTo float64) float64 {
-	if l.Dimension.Unit == "%" {
-		return referTo * l.Dimension.Value / 100
+func lengthOrPercent(l props.Length, style *computed.Style, referTo float64) float64 {
+	if v := layout.Percentage(l, style, referTo); !v.Auto {
+		return v.V
 	}
-	return l.Dimension.Value
+	return 0
 }
 
 func unitsToPx(u int32) float64 { return float64(u) / 1024 }
@@ -93,9 +91,9 @@ func unitsToPx(u int32) float64 { return float64(u) / 1024 }
 // origin at (x, y). The page is y-down and glyphs y-up, so the text matrix
 // flips the vertical axis.
 func drawFirstLine(s *stream.Stream, tb *boxes.TextBox, textOverflow props.Keyword, blockEllipsis props.KeywordOrString, x, y float64) {
-	layout := tb.Layout
+	lay := tb.Layout
 	// Lines with only invisible characters have nothing to show.
-	if strings.TrimSpace(layout.Text) == "" {
+	if strings.TrimSpace(lay.Text) == "" {
 		return
 	}
 
@@ -104,21 +102,21 @@ func drawFirstLine(s *stream.Stream, tb *boxes.TextBox, textOverflow props.Keywo
 	var line *linebreak.Line
 	switch {
 	case textOverflow == "ellipsis":
-		if layout.MaxWidth == nil {
+		if lay.MaxWidth == nil {
 			logging.Warnf("text-overflow: ellipsis needs a width, ignored")
-			line = layout.FirstLine()
+			line = lay.FirstLine()
 			break
 		}
-		layout.EllipsizeEnd(*layout.MaxWidth)
-		line = layout.FirstLine()
+		lay.EllipsizeEnd(*lay.MaxWidth)
+		line = lay.FirstLine()
 	case blockEllipsis.Keyword != "none" && blockEllipsis != (props.KeywordOrString{}):
-		line = blockEllipsized(layout, tb, blockEllipsis, lang)
+		line = blockEllipsized(lay, tb, blockEllipsis, lang)
 	default:
-		line = layout.FirstLine()
+		line = lay.FirstLine()
 	}
 
 	s.SetTextMatrix(1, 0, 0, -1, x, y)
-	text := layout.Text
+	text := lay.Text
 	for _, run := range line.Runs {
 		showRun(s, run, text)
 	}
@@ -127,11 +125,11 @@ func drawFirstLine(s *stream.Stream, tb *boxes.TextBox, textOverflow props.Keywo
 // blockEllipsized wraps the text at its available width and ends it with the
 // ellipsis, shortening it a word at a time until what follows the first
 // line is gone (CSS Overflow 4 §3.3).
-func blockEllipsized(layout *linebreak.Layout, tb *boxes.TextBox, blockEllipsis props.KeywordOrString, lang string) *linebreak.Line {
-	if layout.MaxWidth == nil {
-		return layout.FirstLine()
+func blockEllipsized(lay *linebreak.Layout, tb *boxes.TextBox, blockEllipsis props.KeywordOrString, lang string) *linebreak.Line {
+	if lay.MaxWidth == nil {
+		return lay.FirstLine()
 	}
-	layout.Wrap(*layout.MaxWidth)
+	lay.Wrap(*lay.MaxWidth)
 
 	ellipsis := "…"
 	if blockEllipsis.Keyword != "auto" {
@@ -139,22 +137,22 @@ func blockEllipsized(layout *linebreak.Layout, tb *boxes.TextBox, blockEllipsis 
 	}
 
 	// A hyphenated word loses its last word along with the hyphen.
-	text := layout.Text
+	text := lay.Text
 	if hyphen := string(tb.Style.HyphenateCharacter()); hyphen != "" && strings.HasSuffix(text, hyphen) {
 		text = text[:len(text)-len(hyphen)]
 		if end, ok := linebreak.LastWordEnd(text, lang); ok && end > 0 {
 			text = text[:end]
 		}
 	}
-	layout.SetText(text + ellipsis)
-	line, rest := layout.FirstLineAndRemainder()
+	lay.SetText(text + ellipsis)
+	line, rest := lay.FirstLineAndRemainder()
 	for rest >= 0 {
-		end, ok := linebreak.LastWordEnd(strings.TrimSuffix(layout.Text, ellipsis), lang)
+		end, ok := linebreak.LastWordEnd(strings.TrimSuffix(lay.Text, ellipsis), lang)
 		if !ok {
 			break
 		}
-		layout.SetText(layout.Text[:end] + ellipsis)
-		line, rest = layout.FirstLineAndRemainder()
+		lay.SetText(lay.Text[:end] + ellipsis)
+		line, rest = lay.FirstLineAndRemainder()
 	}
 	return line
 }
