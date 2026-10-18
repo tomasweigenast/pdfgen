@@ -36,6 +36,149 @@ func widthOf(t *testing.T, source, tag string) props.Length {
 	return style(tag, 0, "").Width()
 }
 
+func TestPresentationalAttributesCascadeToStyles(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	doc := csstest.Parse(t, `<body marginwidth="12" marginheight="8" text="#123456" bgcolor="#abcdef"><div align="right"><font size="5" color="red" face="serif">x</font><hr width="30" size="4"><ol><li value="3">item</li></ol></div></body>`)
+	sf := csstest.StyleFor(t, doc, cascade.Options{PresentationalHints: true})
+	style := func(tag string, index int) *computed.Style {
+		t.Helper()
+		return sf.Get(csstest.Elements(doc, tag)[index], "")
+	}
+	body := style("body", 0)
+	if body.MarginLeft() != props.Px(12) || body.MarginRight() != props.Px(12) || body.MarginTop() != props.Px(8) || body.MarginBottom() != props.Px(8) {
+		t.Errorf("body margins = %v %v %v %v", body.MarginTop(), body.MarginRight(), body.MarginBottom(), body.MarginLeft())
+	}
+	if got := body.Color(); !slices.Equal(got.Coordinates, []float64{0x12 / 255.0, 0x34 / 255.0, 0x56 / 255.0}) {
+		t.Errorf("body color = %v", got)
+	}
+	if got := body.BackgroundColor(); !slices.Equal(got.Coordinates, []float64{0xab / 255.0, 0xcd / 255.0, 0xef / 255.0}) {
+		t.Errorf("body background-color = %v", got)
+	}
+	if got := style("div", 0).TextAlignAll(); got != "right" {
+		t.Errorf("div text-align = %q, want right", got)
+	}
+	font := style("font", 0)
+	if font.FontSize() != 24 || !slices.Equal(font.Color().Coordinates, []float64{1, 0, 0}) || font.FontFamily()[0] != "serif" {
+		t.Errorf("font attributes gave size %v, color %v, family %v", font.FontSize(), font.Color(), font.FontFamily())
+	}
+	hr := style("hr", 0)
+	if hr.Width() != props.Px(30) || hr.Height() != props.Px(2) {
+		t.Errorf("hr dimensions = %v by %v", hr.Width(), hr.Height())
+	}
+	if got := style("li", 0).CounterReset(); len(got.Items) == 0 {
+		t.Error("li value did not reset its list counter")
+	}
+}
+
+func TestTableAndReplacedElementAttributesCascade(t *testing.T) {
+	doc := csstest.Parse(t, `<table width="200" height="40" cellspacing="3" cellpadding="4" border="2" bordercolor="blue"><col width="25%"><tbody><tr align="center" height="30"><td width="50" height="20">cell</td></tr></tbody></table><img align="middle" hspace="5" vspace="6" width="40" height="30" border="1"><input type="text" width="10"><input type="image" width="12" height="8">`)
+	sf := csstest.StyleFor(t, doc, cascade.Options{PresentationalHints: true})
+	style := func(tag string, index int) *computed.Style {
+		t.Helper()
+		return sf.Get(csstest.Elements(doc, tag)[index], "")
+	}
+	table := style("table", 0)
+	if table.Width() != props.Px(200) || table.Height() != props.Px(40) || table.BorderSpacing().X != 3 || table.BorderTopWidth() != 2 {
+		t.Errorf("table dimensions or border = %v %v %v %v", table.Width(), table.Height(), table.BorderSpacing(), table.BorderTopWidth())
+	}
+	if got := style("td", 0); got.PaddingTop() != props.Px(4) || got.Width() != props.Px(50) || got.Height() != props.Px(20) || got.TextAlignAll() != "center" {
+		t.Errorf("cell hints = padding %v, size %v by %v, align %v", got.PaddingTop(), got.Width(), got.Height(), got.TextAlignAll())
+	}
+	if got := style("col", 0).Width(); got.Dimension.Unit != "%" || got.Dimension.Value != 25 {
+		t.Errorf("column width = %v", got)
+	}
+	img := style("img", 0)
+	if img.VerticalAlign() != props.LengthKeyword("middle") || img.MarginLeft() != props.Px(5) || img.MarginTop() != props.Px(6) || img.Width() != props.Px(40) || img.BorderTopStyle() != "solid" {
+		t.Errorf("image hints = align %v, margins %v/%v, width %v, border %v", img.VerticalAlign(), img.MarginLeft(), img.MarginTop(), img.Width(), img.BorderTopStyle())
+	}
+	if style("input", 0).Width() == props.Px(10) {
+		t.Error("non-image input unexpectedly accepted a width hint")
+	}
+	if got := style("input", 1); got.Width() != props.Px(12) || got.Height() != props.Px(8) {
+		t.Errorf("image input dimensions = %v by %v", got.Width(), got.Height())
+	}
+}
+
+func TestImportanceLayersAndGlobalValues(t *testing.T) {
+	tests := []struct {
+		name, css, tag string
+		wantWidth      props.Length
+		wantColor      string
+	}{
+		{"important specificity", `div { color: red !important } #target { color: blue !important }`, "div", props.Length{}, "blue"},
+		{"important layer order", `@layer first { p { width: 20px !important } } @layer second { p { width: 10px !important } }`, "p", props.Px(10), ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			style, _ := styled(t, `<style>`+tt.css+`</style><div id="target"></div><p></p>`)
+			got := style(tt.tag, 0, "")
+			if tt.wantWidth != (props.Length{}) && got.Width() != tt.wantWidth {
+				t.Errorf("width = %v, want %v", got.Width(), tt.wantWidth)
+			}
+			if tt.wantColor != "" && got.Color().Coordinates[2] != 1 {
+				t.Errorf("color = %v, want blue", got.Color())
+			}
+		})
+	}
+	parent, child := familyStyles(t)
+	if child.Color().Coordinates[0] != parent.Color().Coordinates[0] || child.Width() != props.Px(10) {
+		t.Errorf("inherited values = color %v, width %v", child.Color(), child.Width())
+	}
+}
+
+func TestStylesheetOriginsAreAvailable(t *testing.T) {
+	ua := cascade.UAStylesheets(false)
+	forms := cascade.UAStylesheets(true)
+	if len(ua) == 0 || len(forms) < len(ua) {
+		t.Fatalf("user agent stylesheets: without forms %d, with forms %d", len(ua), len(forms))
+	}
+	doc := csstest.Parse(t, `<style>p { color: red }</style><p>text</p>`)
+	sf := csstest.StyleFor(t, doc, cascade.Options{})
+	sheets := sf.Sheets()
+	if len(sheets) < 2 {
+		t.Fatalf("got %d stylesheet entries, want user agent and author stylesheets", len(sheets))
+	}
+	if sheets[len(sheets)-1].Origin != cascade.Author {
+		t.Errorf("last stylesheet origin = %v, want author", sheets[len(sheets)-1].Origin)
+	}
+}
+
+func TestInternalTableStylesResetInapplicableSpacing(t *testing.T) {
+	doc := csstest.Parse(t, `<style>table { border-collapse: collapse; padding: 8px } .cell { display: table-cell; margin: 9px }</style><table><tr><td class="cell">x</td></tr></table>`)
+	sf := csstest.StyleFor(t, doc, cascade.Options{})
+	table := sf.Get(csstest.Elements(doc, "table")[0], "")
+	if table.PaddingTop() != props.Px(0) || table.PaddingLeft() != props.Px(0) {
+		t.Errorf("collapsed table padding = %v %v", table.PaddingTop(), table.PaddingLeft())
+	}
+	cell := sf.Get(csstest.Elements(doc, "td")[0], "")
+	if cell.MarginTop() != props.Px(0) || cell.MarginLeft() != props.Px(0) {
+		t.Errorf("table-cell margins = %v %v", cell.MarginTop(), cell.MarginLeft())
+	}
+	if got := sf.Get(csstest.Elements(doc, "td")[0], "before"); got != nil {
+		t.Errorf("undeclared pseudo-element style = %v, want nil", got)
+	}
+}
+
+func TestColorProfileRulesWithoutSourcesAreIgnored(t *testing.T) {
+	logs := logging.StartCapture()
+	defer logs.Close()
+	profiles := map[string]*cascade.ColorProfile{}
+	cascade.ParseStylesheet(`@color-profile invalid { src: url(profile.icc) } @color-profile --display { components: red green blue; rendering-intent: saturation; unknown: value }`, "https://example.com/style.css", &cascade.Environment{ColorProfiles: profiles})
+	if len(profiles) != 0 {
+		t.Fatalf("profiles = %v, want none without a valid source", profiles)
+	}
+	lines := logs.Lines()
+	if len(lines) != 3 || !strings.Contains(strings.Join(lines, "\n"), "Invalid color profile name") || !strings.Contains(strings.Join(lines, "\n"), "descriptor not supported") || !strings.Contains(strings.Join(lines, "\n"), "No source for profile") {
+		t.Errorf("color profile warnings = %q", lines)
+	}
+}
+
+func familyStyles(t *testing.T) (*computed.Style, *computed.Style) {
+	t.Helper()
+	style, _ := styled(t, `<style>p { color: red; width: 10px } span { color: inherit; width: inherit }</style><p><span></span></p>`)
+	return style("p", 0, ""), style("span", 0, "")
+}
+
 func TestVariableWidths(t *testing.T) {
 	tests := []struct {
 		name, css string
