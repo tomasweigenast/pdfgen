@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/tomasweigenast/pdfgen/internal/css/syntax"
+	"github.com/tomasweigenast/pdfgen/internal/units"
 )
 
 // PropInfo describes a CSS property.
@@ -56,8 +57,9 @@ type ComputeContext interface {
 	Strut() (lineHeight, baseline float64)
 }
 
-// mmToPx is the size of a millimetre in CSS pixels (CSS Values 3 §5.2).
-const mmToPx = 96 / 25.4
+// mmToPx is the size of a millimetre in CSS pixels (CSS Values 3 §5.2), as
+// the units package converts it.
+var mmToPx = units.LengthsToPixels["mm"]
 
 var (
 	black        = Color{Color: syntax.NewColor(syntax.SRGB, []float64{0, 0, 0}, 1)}

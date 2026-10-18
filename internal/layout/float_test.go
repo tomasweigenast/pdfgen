@@ -1075,3 +1075,38 @@ func TestClearanceOfTheFirstChildMovesItBelowFloatsOutsideItsParent(t *testing.T
 		t.Errorf("section at y = %g with height %g, want 0 and 55", section.Base().PositionY, section.Base().Height.V)
 	}
 }
+
+// A4 is 793.7007874015749px wide, and 45% of it only just overflows what the
+// first 55% float leaves free; the comparison has to see that last bit.
+func TestFloatsOverflowByOneUnitInTheLastPlace(t *testing.T) {
+	tests := []struct {
+		margin string
+		wantY  float64
+	}{
+		{"0", 10},
+		{"2mm", 0},
+		{"4mm", 10},
+		{"6mm", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.margin, func(t *testing.T) {
+			page := onlyPage(t, paginate(t, `
+              <style>
+                @page { size: A4; margin: `+tt.margin+` }
+                body { margin: 0 }
+                div { float: left; height: 10px }
+              </style>
+              <div style="width: 55%"></div>
+              <div style="width: 45%"></div>
+            `))
+			_, body := pageBody(t, page)
+			floats := boxes.ChildrenOf(body)
+			if len(floats) != 2 {
+				t.Fatalf("body has %d children, want 2", len(floats))
+			}
+			if got := floats[1].Base().PositionY - floats[0].Base().PositionY; got != tt.wantY {
+				t.Errorf("second float is %g below the first, want %g", got, tt.wantY)
+			}
+		})
+	}
+}

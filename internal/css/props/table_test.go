@@ -285,6 +285,13 @@ func TestInitialPageSizeIsA4InPixels(t *testing.T) {
 	}
 }
 
+func TestInitialPageSizeMultipliesRoundedMillimetre(t *testing.T) {
+	got := PropSize.Initial().(PixelPair)
+	if float64(got.X) != 793.7007874015749 || float64(got.Y) != 1122.5196850393702 {
+		t.Errorf("got %.17g x %.17g", float64(got.X), float64(got.Y))
+	}
+}
+
 func TestMaxSizesAreUnbounded(t *testing.T) {
 	for _, id := range []PropID{PropMaxWidth, PropMaxHeight, PropMaxBlockSize, PropMaxInlineSize} {
 		if l, ok := id.Initial().(Length); !ok || !l.IsInfinite() {

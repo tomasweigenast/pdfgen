@@ -829,7 +829,7 @@ var initialValues = [...]Value{
 	PropImageOrientation:        ImageOrientation{Keyword: Keyword("from-image")},
 	PropObjectFit:               Keyword("fill"),
 	PropObjectPosition:          Positions{{OriginX: Keyword("left"), X: Length{Dimension: Dimension{Value: 50, Unit: "%"}}, OriginY: Keyword("top"), Y: Length{Dimension: Dimension{Value: 50, Unit: "%"}}}},
-	PropSize:                    PixelPair{X: Pixels(793.7007874015748), Y: Pixels(1122.5196850393702)},
+	PropSize:                    PixelPair{X: Pixels(793.7007874015749), Y: Pixels(1122.5196850393702)},
 	PropPage:                    Keyword("auto"),
 	PropBleedLeft:               Length{Keyword: Keyword("auto")},
 	PropBleedRight:              Length{Keyword: Keyword("auto")},
