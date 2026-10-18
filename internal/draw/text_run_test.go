@@ -61,3 +61,37 @@ func TestShowRunMovesPastEmptyGlyphs(t *testing.T) {
 		t.Errorf("content = %q, want two shown strings, the second one moved to the right", got)
 	}
 }
+
+func showRunContent(t *testing.T, run *linebreak.Run, text string) string {
+	t.Helper()
+	s := stream.New(stream.NewResources(writer.Ref{Num: 1}), stream.Options{})
+	s.BeginText()
+	var shift float64
+	showRun(s, run, text, &shift)
+	s.EndText()
+	return string(s.Bytes())
+}
+
+func TestShowRunAdjustsAdvanceToTheLayout(t *testing.T) {
+	line, text := testLine(t, "ab")
+	run := line.Runs[0]
+	// Glyphs are 2px wide; widening the advance of the first by 1px moves
+	// the next one 500 thousandths of the size to the right.
+	run.Glyphs[0].XAdvance += 1024
+	if got := showRunContent(t, run, text); !strings.Contains(got, ">-500<") {
+		t.Errorf("content = %q, want an adjustment of -500", got)
+	}
+}
+
+func TestShowRunRaisesOffsetGlyphs(t *testing.T) {
+	line, text := testLine(t, "ab")
+	run := line.Runs[0]
+	run.Glyphs[1].YOffset = 1024
+	got := showRunContent(t, run, text)
+	if !strings.Contains(got, "1 Ts") || !strings.Contains(got, "0 Ts") {
+		t.Errorf("content = %q, want the second glyph raised by 1 and the rise reset", got)
+	}
+	if strings.Index(got, "1 Ts") > strings.Index(got, "0 Ts") {
+		t.Errorf("rise reset before it was set: %q", got)
+	}
+}
