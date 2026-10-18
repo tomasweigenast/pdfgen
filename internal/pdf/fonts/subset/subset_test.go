@@ -238,6 +238,12 @@ func TestParseReportsUnsupportedOutlines(t *testing.T) {
 	}
 }
 
+func TestParseEmptyTableDirectoryReturnsAnError(t *testing.T) {
+	if _, err := Parse([]byte("0000\x00\x00000000"), 0); err == nil {
+		t.Fatal("Parse succeeded for a font with no tables")
+	}
+}
+
 func TestFullExtractsFaceOfCollection(t *testing.T) {
 	data := testFont(t)
 	same, err := Full(data, 0)

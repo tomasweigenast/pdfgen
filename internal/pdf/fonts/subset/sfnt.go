@@ -44,13 +44,13 @@ func Parse(data []byte, index int) (*Font, error) {
 
 	// A single face parses faster and without the collection directory.
 	standalone := writeSFNT(version, tables)
-	sf, err := tdfont.ParseSFNT(standalone, 0)
+	sf, err := parseSFNT(standalone)
 	if err != nil {
 		// The cmap is not needed to subset by glyph index, and some
 		// collections ship cmap formats the parser rejects.
 		delete(tables, "cmap")
 		var err2 error
-		sf, err2 = tdfont.ParseSFNT(writeSFNT(version, tables), 0)
+		sf, err2 = parseSFNT(writeSFNT(version, tables))
 		if err2 != nil {
 			if _, cff := tables["CFF "]; cff {
 				return nil, fmt.Errorf("%w: %v", ErrUnsupported, err2)
@@ -62,6 +62,16 @@ func Parse(data []byte, index int) (*Font, error) {
 		return nil, fmt.Errorf("%w: no outlines", ErrUnsupported)
 	}
 	return &Font{sfnt: sf}, nil
+}
+
+func parseSFNT(data []byte) (sf *tdfont.SFNT, err error) {
+	defer func() {
+		if value := recover(); value != nil {
+			sf = nil
+			err = fmt.Errorf("font parser panic: %v", value)
+		}
+	}()
+	return tdfont.ParseSFNT(data, 0)
 }
 
 // IsCFF reports whether the outlines are PostScript (CFF) outlines.
@@ -190,8 +200,11 @@ func writeSFNT(version uint32, tables map[string][]byte) []byte {
 	sort.Strings(tags)
 
 	n := len(tags)
-	entrySelector := bits.Len(uint(n)) - 1
-	searchRange := 16 << entrySelector
+	entrySelector, searchRange := 0, 0
+	if n > 0 {
+		entrySelector = bits.Len(uint(n)) - 1
+		searchRange = 16 << entrySelector
+	}
 
 	size := 12 + 16*n
 	for _, t := range tags {
