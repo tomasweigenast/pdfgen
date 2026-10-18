@@ -74,6 +74,74 @@ func TestSideBordersMeetOnTheCornerDiagonals(t *testing.T) {
 		<div></div>`)
 }
 
+func TestDashedBordersWithTwoColorsAreSpacedFromCorner(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		zRRRRR______RRRRRz
+		BzRRRR______RRRRzB
+		BB______________BB
+		BB______________BB
+		BB______________BB
+		BB______________BB
+		__________________
+		__________________
+		__________________
+		__________________
+		__________________
+		__________________
+		BB______________BB
+		BB______________BB
+		BB______________BB
+		BB______________BB
+		BzRRRR______RRRRzB
+		zRRRRR______RRRRRz
+	`, `
+		<style>
+			@page { size: 18px }
+			div {
+				border: 2px dashed;
+				border-color: red blue;
+				height: 14px;
+				width: 14px;
+			}
+		</style>
+		<div></div>`)
+}
+
+func TestDottedBordersWithTwoColorsAreSpacedFromCorner(t *testing.T) {
+	testutil.AssertNoLogs(t)
+	testutil.AssertPixels(t, `
+		zR__RR__RR__RR__Rz
+		Bz__RR__RR__RR__zB
+		__________________
+		__________________
+		BB______________BB
+		BB______________BB
+		__________________
+		__________________
+		BB______________BB
+		BB______________BB
+		__________________
+		__________________
+		BB______________BB
+		BB______________BB
+		__________________
+		__________________
+		Bz__RR__RR__RR__zB
+		zR__RR__RR__RR__Rz
+	`, `
+		<style>
+			@page { size: 18px }
+			div {
+				border: 2px dotted;
+				border-color: red blue;
+				height: 14px;
+				width: 14px;
+			}
+		</style>
+		<div></div>`)
+}
+
 func TestCollapsedTableBordersLookDifferentPerStyle(t *testing.T) {
 	t.Skip("not supported: table layout")
 	const source = `

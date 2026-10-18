@@ -204,3 +204,26 @@ func TestInsetBorderSidesAreShaded(t *testing.T) {
 		t.Errorf("fill colors = %v, want %v", got, want)
 	}
 }
+
+func TestRoundedDashedAndDottedBordersHaveFiniteGeometry(t *testing.T) {
+	for _, style := range []string{"dashed", "dotted"} {
+		for _, size := range []string{"0", "1px", "7px", "40px", "300px"} {
+			for _, radius := range []string{"0 5px 0 0", "3px", "50%", "100px 0", "1000px"} {
+				name := style + " " + size + " " + radius
+				t.Run(name, func(t *testing.T) {
+					testutil.AssertNoLogs(t)
+					content := pageContent(t, `
+						<style>@page { size: 400px } body { margin: 0 }</style>
+						<div style="width: `+size+`; height: `+size+`; border: 4px `+style+` red;
+						            border-color: red red red blue; border-radius: `+radius+`"></div>`)
+					lower := strings.ToLower(content)
+					for _, bad := range []string{"nan", "inf"} {
+						if strings.Contains(lower, bad) {
+							t.Fatalf("content contains %s", bad)
+						}
+					}
+				})
+			}
+		}
+	}
+}
