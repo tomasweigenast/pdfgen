@@ -117,8 +117,9 @@ func drawFirstLine(s *stream.Stream, tb *boxes.TextBox, textOverflow props.Keywo
 
 	s.SetTextMatrix(1, 0, 0, -1, x, y)
 	text := lay.Text
+	shift := 0.0
 	for _, run := range line.Runs {
-		showRun(s, run, text)
+		showRun(s, run, text, &shift)
 	}
 }
 
@@ -158,8 +159,10 @@ func blockEllipsized(lay *linebreak.Layout, tb *boxes.TextBox, blockEllipsis pro
 }
 
 // showRun shows the glyphs of one run, in the PDF font of its face. text is
-// the text of the layout the clusters of the run point into.
-func showRun(s *stream.Stream, run *linebreak.Run, text string) {
+// the text of the layout the clusters of the run point into. shift is the
+// movement in px, to the right, that empty glyphs owe to the next glyph shown,
+// which may be in another run.
+func showRun(s *stream.Stream, run *linebreak.Run, text string, shift *float64) {
 	if len(run.Glyphs) == 0 || run.Size < minFontSize {
 		return
 	}
@@ -175,13 +178,10 @@ func showRun(s *stream.Stream, run *linebreak.Run, text string) {
 		s.ShowGlyphs(elements)
 		elements = elements[:0]
 	}
-	// shift is movement still owed to the next glyph, in px, to the right.
-	// Empty glyphs advance without being drawn.
-	shift := 0.0
 	for i, g := range run.Glyphs {
 		advance := g.XAdvancePx()
 		if g.Empty {
-			shift += advance
+			*shift += advance
 			continue
 		}
 
@@ -189,7 +189,7 @@ func showRun(s *stream.Stream, run *linebreak.Run, text string) {
 		switch {
 		case g.Missing() && run.Ellipsis == "":
 			r, _ := utf8.DecodeRuneInString(text[min(run.Start+g.Cluster, len(text)):])
-			logging.Warnf(".notdef glyph rendered for Unicode string unsupported by fonts: %q (U+%04X)", string(r), r)
+			logging.Warnf(".notdef glyph rendered for Unicode string unsupported by fonts: \"%s\" (U+%04X)", string(r), r)
 			cid = font.MissingCID(r, math.RoundToEven(toTJ(advance)))
 		default:
 			cid = font.CID(uint16(g.ID))
@@ -202,10 +202,10 @@ func showRun(s *stream.Stream, run *linebreak.Run, text string) {
 		logical := font.LogicalWidth(cid, size)
 		el := fonts.TJElement{
 			CID:    cid,
-			Before: -(toTJ(shift) + offset),
+			Before: -(toTJ(*shift) + offset),
 			Adjust: logical + offset - toTJ(advance),
 		}
-		shift = 0
+		*shift = 0
 		if rise := g.YOffsetPx(); rise != 0 {
 			flush()
 			s.SetTextRise(rise)

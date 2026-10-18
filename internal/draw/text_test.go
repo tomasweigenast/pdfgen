@@ -560,3 +560,142 @@ func TestTextDecorationVar(t *testing.T) {
 	`, decorated(7, `--blue: blue; color: red;
 		text-decoration-color: var(--blue); text-decoration-line: line-through`))
 }
+
+func TestZeroWidthCharacter(t *testing.T) {
+	testutil.AssertPixels(t, `
+		______
+		_RRRR_
+		_RRRR_
+		______
+	`, `
+		<style>
+			@page { size: 6px 4px; margin: 1px }
+			body { color: red; font-family: testfont; font-size: 2px; line-height: 1 }
+		</style>
+		<div>a&zwnj;b</div>`)
+}
+
+func TestFontSizeVerySmall(t *testing.T) {
+	testutil.AssertPixels(t, `
+		__________
+		__________
+		__________
+		__________
+	`, `
+		<style>
+			@page { size: 10px 4px; margin: 1px }
+			body { font-family: testfont; font-size: 0.00000001px }
+		</style>
+		test font size zero`)
+}
+
+func TestMissingGlyphFallback(t *testing.T) {
+	// The apostrophe is not in the test font.
+	testutil.AssertPixels(t, `
+		___zzzzzzzzzzzzzzzzz
+		_RRzzzzzzzzzzzzzzzzz
+		_RRzzzzzzzzzzzzzzzzz
+		___zzzzzzzzzzzzzzzzz
+	`, `
+		<style>
+			@page { size: 20px 4px }
+			body {
+				color: red; font-family: testfont, sans-serif; font-size: 2px;
+				line-height: 0; margin: 2px 1px
+			}
+		</style>a'`)
+}
+
+func TestTabulationCharacter(t *testing.T) {
+	testutil.AssertPixels(t, `
+		__________
+		_RR____RR_
+		_RR____RR_
+		__________
+	`, `
+		<style>
+			@page { size: 10px 4px; margin: 1px }
+			body { color: red; font-family: testfont; font-size: 2px; line-height: 1; tab-size: 3 }
+		</style>
+		<pre>a&Tab;b</pre>`)
+}
+
+func TestOtbFont(t *testing.T) {
+	t.Skip("not supported: bitmap-only fonts")
+	testutil.AssertPixels(t, `
+		____________________
+		__RR______RR________
+		__RR__RR__RR________
+		__RR__RR__RR________
+		____________________
+		____________________
+	`, `
+		<style>
+			@page { size: 20px 6px; margin: 1px }
+			@font-face { src: url(testfont.otb); font-family: testfont-otb }
+			body { color: red; font-family: testfont-otb; font-size: 4px; line-height: 0.8 }
+		</style>
+		AaA`)
+}
+
+func TestHugeJustification(t *testing.T) {
+	testutil.AssertPixels(t, `
+		____
+		_RR_
+		_RR_
+		____
+	`, `
+		<style>
+			@page { size: 4px 4px; margin: 1px }
+			body {
+				color: red; font-family: testfont; font-size: 2px; line-height: 1;
+				text-align: justify-all; width: 100000px
+			}
+		</style>
+		A B`)
+}
+
+func TestFontVariantCaps(t *testing.T) {
+	for _, name := range []string{
+		"small-caps", "all-small-caps", "petite-caps", "all-petite-caps", "unicase", "titling",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Skip("not supported: the expected pixels are the glyph shapes of a system sans font")
+		})
+	}
+}
+
+func TestUnicodeRange(t *testing.T) {
+	testutil.AssertPixels(t, `
+		__________
+		_RRRRRR___
+		_RRRRRRzz_
+		__________
+	`, `
+		<style>
+			@font-face { font-family: uni; src: url(testfont.otf); unicode-range: u+41, u+043-045, u+005?; }
+			@page { size: 10px 4px }
+			body {
+				color: red; font-family: uni, sans-serif; font-size: 2px;
+				line-height: 0; margin: 2px 1px
+			}
+		</style>ADZB`)
+}
+
+func TestBadFontName(t *testing.T) {
+	testutil.AssertPixels(t, `
+		__________
+		_RRRRRR___
+		_RRRRRR___
+		__________
+	`, `
+		<style>
+			@font-face { src: url(testfont.otf); font-family: "w/e\\a\Az\2fy" }
+			@page { size: 10px 4px }
+			body {
+				color: red; font-family: "w/e\\a\Az\2fy"; font-size: 2px;
+				line-height: 0; margin: 2px 1px
+			}
+		</style>
+		abc`)
+}
