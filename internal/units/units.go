@@ -18,13 +18,19 @@ var AngleToRadians = map[string]float64{
 // CSS pixels (CSS 2.1 §4.3.2).
 var LengthsToPixels = map[string]float64{
 	"px": 1,
-	"pt": 1 / 0.75,
+	"pt": quotient(1, 0.75),
 	"pc": 16,
 	"in": 96,
-	"cm": 96 / 2.54,
-	"mm": 96 / 25.4,
-	"q":  96 / 25.4 / 4,
+	"cm": quotient(96, 2.54),
+	"mm": quotient(96, 25.4),
+	"q":  quotient(quotient(96, 25.4), 4),
 }
+
+// quotient divides at run time. A constant expression such as 96 / 25.4 is
+// evaluated exactly and rounded once, which can land one unit in the last
+// place away from the rounded divisions every length computation starts
+// from, and lengths that sum to a container width would then stop fitting.
+func quotient(a, b float64) float64 { return a / b }
 
 // ResolutionToDppx gives the size of one unit of each resolution unit in dots
 // per pixel (CSS Values 4 §6.4).

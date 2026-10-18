@@ -116,3 +116,19 @@ func TestResolutionToDppx(t *testing.T) {
 		t.Errorf("dpcm = %v", got)
 	}
 }
+
+func TestAbsoluteLengthUnitsRoundEveryDivision(t *testing.T) {
+	// The operands are variables so that each division runs in float64
+	// instead of being folded into one exact constant.
+	inch, mm, cm, pt, four := 96.0, 25.4, 2.54, 0.75, 4.0
+	for unit, want := range map[string]float64{
+		"pt": 1 / pt,
+		"cm": inch / cm,
+		"mm": inch / mm,
+		"q":  inch / mm / four,
+	} {
+		if got := LengthsToPixels[unit]; got != want {
+			t.Errorf("1%s = %.17g px, want %.17g", unit, got, want)
+		}
+	}
+}
