@@ -1,0 +1,49 @@
+version: 2
+project_name: pdfgen
+builds:
+  - id: pdfgen
+    main: ./cmd/pdfgen
+    binary: pdfgen
+    env: [CGO_ENABLED=0]
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    goamd64: [v1]
+    flags: [-trimpath]
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    ldflags:
+      - -s -w -buildid= -X github.com/tomasweigenast/pdfgen/internal/pdf/metadata.Version={{ .Version }} -X main.commit={{ .FullCommit }}
+archives:
+  - id: archives
+    ids: [pdfgen]
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    builds_info:
+      mtime: '{{ .CommitDate }}'
+    files:
+      - src: README.md
+        info: {mtime: '{{ .CommitDate }}'}
+      - src: CHANGELOG.md
+        info: {mtime: '{{ .CommitDate }}'}
+      - src: LICENSE
+        info: {mtime: '{{ .CommitDate }}'}
+      - src: NOTICE
+        info: {mtime: '{{ .CommitDate }}'}
+      - src: internal/text/hyphen/dictionaries/*
+        dst: third-party/hyphenation
+        strip_parent: true
+        info: {mtime: '{{ .CommitDate }}'}
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+  algorithm: sha256
+release:
+  github: {owner: tomasweigenast, name: pdfgen}
+  mode: keep-existing
+  replace_existing_artifacts: false
+  prerelease: auto
+  make_latest: false
+  preflight: {fail_on_error: true}
+changelog:
+  disable: true

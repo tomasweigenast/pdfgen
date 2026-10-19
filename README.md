@@ -23,7 +23,50 @@ Inspired by [WeasyPrint](https://github.com/Kozea/WeasyPrint).
 
 ## Quick start
 
-Requires Go 1.27 or later.
+Building from source requires Go 1.27 or later. Prebuilt binaries do not require Go.
+
+### Downloads
+
+Download archives and the checksum file from [GitHub Releases](https://github.com/tomasweigenast/pdfgen/releases).
+Supported targets: macOS, Linux and Windows, each for AMD64 and ARM64. Extract
+`pdfgen` (or `pdfgen.exe`) and put it on your PATH. Direct binaries use system or
+document-provided fonts. Archives include third-party dictionary notices and
+source data in `third-party/hyphenation`.
+
+For example, verify an archive with the matching release checksum file:
+
+```sh
+# Linux (checks downloaded files and skips other targets):
+sha256sum --ignore-missing -c pdfgen_0.1.0_checksums.txt
+# macOS (compare the result with the matching line in the checksum file):
+shasum -a 256 pdfgen_0.1.0_darwin_arm64.tar.gz
+```
+
+```powershell
+Get-FileHash .\pdfgen_0.1.0_windows_amd64.zip -Algorithm SHA256
+# Compare with that filename in pdfgen_0.1.0_checksums.txt.
+```
+
+### Docker
+
+The image at `ghcr.io/tomasweigenast/pdfgen` supports Linux AMD64 and ARM64 and
+includes DejaVu fonts and CA certificates. It runs as non-root. Give the selected
+user write permission to the mounted output directory:
+
+```sh
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  ghcr.io/tomasweigenast/pdfgen:0.1.0 input.html output.pdf
+
+cat input.html | docker run --rm -i \
+  ghcr.io/tomasweigenast/pdfgen:0.1.0 - - > output.pdf
+```
+
+Mount additional fonts read-only at `/usr/share/fonts/custom`, for example
+`-v "$PWD/fonts:/usr/share/fonts/custom:ro"`. Exact version tags and digests can
+be pinned; stable `latest`, minor and (from 1.0) major aliases are also available.
+Release candidates only receive their exact version tag.
 
 ### Command line
 

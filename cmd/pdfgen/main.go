@@ -39,6 +39,9 @@ options:
   -h, --help               print this help and exit
 `
 
+// commit is set by the release build.
+var commit = "unknown"
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
@@ -66,7 +69,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "pdfgen: %v\nTry 'pdfgen --help' for more information.\n", err)
 		return 1
 	case cfg.version:
-		fmt.Fprintf(stdout, "pdfgen %s\n", pdfgen.Version())
+		fmt.Fprintf(stdout, "pdfgen %s (commit %s)\n", pdfgen.Version(), commit)
 		return 0
 	}
 

@@ -1,0 +1,187 @@
+name: Publish
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      sha:
+        type: string
+        default: ''
+      validated_sha:
+        type: string
+        default: ''
+      recovery_run_id:
+        type: string
+        default: ''
+      publisher:
+        type: string
+        default: all
+
+permissions: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.verify.outputs.sha }}
+      tag: ${{ steps.verify.outputs.tag }}
+      version: ${{ steps.verify.outputs.version }}
+      needs_ci: ${{ steps.verify.outputs.needs_ci }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_SHA: ${{ inputs.sha }}
+          VALIDATED_SHA: ${{ inputs.validated_sha }}
+          PUBLISHER: ${{ inputs.publisher }}
+        run: |
+          node -e 'if (!["all", "binaries", "docker"].includes(process.env.PUBLISHER)) process.exit(1)'
+          node .github/scripts/release.mjs verify
+
+  validate-source:
+    needs: verify
+    if: needs.verify.outputs.needs_ci == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.verify.outputs.sha }}
+
+  binaries:
+    needs: [verify, validate-source]
+    if: >-
+      always() && needs.verify.result == 'success' &&
+      (needs.validate-source.result == 'success' || needs.validate-source.result == 'skipped') &&
+      (inputs.publisher == 'all' || inputs.publisher == 'binaries')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read # Download retained dist artifacts during recovery.
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+      RELEASE_SHA: ${{ needs.verify.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reverify release identity
+        run: node .github/scripts/release.mjs verify
+      - id: restore
+        env:
+          RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
+        run: node .github/scripts/release.mjs restore
+      # Build locally, then compare every existing asset before uploading anything.
+      # This path works for both initial publication and partial-upload recovery.
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: v2.18.3
+          args: release --clean --skip=publish
+        if: steps.restore.outputs.restored != 'true'
+      - run: node .github/scripts/release.mjs assets
+      - run: node .github/scripts/release.mjs check-assets
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-${{ needs.verify.outputs.tag }}-${{ github.run_attempt }}
+          path: dist/
+          retention-days: 30
+
+  docker:
+    needs: [verify, validate-source, binaries]
+    if: >-
+      always() && needs.verify.result == 'success' &&
+      (needs.validate-source.result == 'success' || needs.validate-source.result == 'skipped') &&
+      (needs.binaries.result == 'success' || inputs.publisher == 'docker') &&
+      (inputs.publisher == 'all' || inputs.publisher == 'docker')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+      RELEASE_SHA: ${{ needs.verify.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node .github/scripts/release.mjs verify
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: existing
+        run: node .github/scripts/release.mjs docker-plan
+      - uses: docker/build-push-action@v6
+        id: build
+        if: steps.existing.outputs.exists != 'true'
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/tomasweigenast/pdfgen:${{ needs.verify.outputs.version }}
+          build-args: |
+            VERSION=${{ needs.verify.outputs.version }}
+            COMMIT=${{ needs.verify.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/tomasweigenast/pdfgen
+            org.opencontainers.image.revision=${{ needs.verify.outputs.sha }}
+            org.opencontainers.image.version=${{ needs.verify.outputs.version }}
+            org.opencontainers.image.licenses=MIT
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=container
+          cache-to: type=gha,mode=max,scope=container
+      - name: Verify index and promote eligible aliases
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: node .github/scripts/release.mjs docker-promote
+
+  result:
+    needs: [verify, validate-source, binaries, docker]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Report publication results
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          PUBLISHER: ${{ inputs.publisher }}
+        run: |
+          node --input-type=module <<'JS'
+          import {appendFileSync} from 'node:fs';
+          const results = JSON.parse(process.env.RESULTS);
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'Publication results\n\n' + Object.entries(results).map(([name, job]) => `- ${name}: ${job.result}`).join('\n') + '\n');
+          const required = ['verify', ...(process.env.PUBLISHER === 'all' ? ['binaries', 'docker'] : [process.env.PUBLISHER])];
+          if (required.some(name => results[name].result !== 'success') || ['failure', 'cancelled'].includes(results['validate-source'].result)) process.exit(1);
+          JS
