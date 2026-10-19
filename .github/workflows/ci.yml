@@ -65,12 +65,33 @@ jobs:
       - name: Install Ghostscript (macOS)
         if: runner.os == 'macOS'
         run: brew install ghostscript
+      # Download the official installer directly; Chocolatey's Ghostscript feed returned 503.
       - name: Install Ghostscript (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          choco install ghostscript -y --no-progress
-          $bin = (Get-ChildItem "C:\Program Files\gs\gs*\bin" | Select-Object -First 1).FullName
-          echo $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $version = '10.08.0'
+          $installerName = 'gs10080w64.exe'
+          $installer = Join-Path $env:RUNNER_TEMP $installerName
+          $url = "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10080/$installerName"
+          $expectedSha512 = 'cb3ecc798508851ba28b05e3fb914ddefe78168190726376d8581546ce61d5b216ffa3359e6f829072786bc12350501c7b6f99110d578696b87213d157774269'
+
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          $actualSha512 = (Get-FileHash $installer -Algorithm SHA512).Hash.ToLowerInvariant()
+          if ($actualSha512 -ne $expectedSha512) {
+            throw "Ghostscript installer checksum mismatch: $actualSha512"
+          }
+
+          $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Ghostscript installer exited with code $($process.ExitCode)"
+          }
+
+          $bin = Join-Path $env:ProgramFiles "gs\gs$version\bin"
+          if (-not (Test-Path (Join-Path $bin 'gswin64c.exe'))) {
+            throw "Ghostscript was not installed in $bin"
+          }
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - run: gs --version
         if: runner.os != 'Windows'
       - run: gswin64c --version
