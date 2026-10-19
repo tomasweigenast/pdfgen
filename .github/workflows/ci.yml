@@ -76,13 +76,27 @@ jobs:
           $url = "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10080/$installerName"
           $expectedSha512 = 'cb3ecc798508851ba28b05e3fb914ddefe78168190726376d8581546ce61d5b216ffa3359e6f829072786bc12350501c7b6f99110d578696b87213d157774269'
 
-          Invoke-WebRequest -Uri $url -OutFile $installer
+          curl.exe --fail --location --show-error --progress-bar `
+            --retry 3 --retry-all-errors --retry-delay 5 `
+            --connect-timeout 30 --max-time 300 `
+            --output $installer $url
+          if ($LASTEXITCODE -ne 0) {
+            throw "Ghostscript download failed with exit code $LASTEXITCODE"
+          }
+
           $actualSha512 = (Get-FileHash $installer -Algorithm SHA512).Hash.ToLowerInvariant()
           if ($actualSha512 -ne $expectedSha512) {
             throw "Ghostscript installer checksum mismatch: $actualSha512"
           }
 
-          $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
+          $process = Start-Process -FilePath $installer -ArgumentList '/S' -PassThru
+          try {
+            Wait-Process -Id $process.Id -Timeout 300 -ErrorAction Stop
+          } catch {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw 'Ghostscript installer timed out after 5 minutes'
+          }
+          $process.Refresh()
           if ($process.ExitCode -ne 0) {
             throw "Ghostscript installer exited with code $($process.ExitCode)"
           }
