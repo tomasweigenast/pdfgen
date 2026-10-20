@@ -59,18 +59,51 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Cache APT packages (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: apt-${{ runner.os }}-${{ runner.arch }}-ghostscript-v1
+      - name: Cache Homebrew downloads (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/homebrew-cache
+          key: homebrew-${{ runner.os }}-${{ runner.arch }}-ghostscript-v1
       - name: Install Ghostscript (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ghostscript
+        env:
+          APT_ARCHIVES: ${{ runner.temp }}/apt-archives
+        run: |
+          sudo mkdir -p "$APT_ARCHIVES/partial"
+          sudo chmod -R a+rwx "$APT_ARCHIVES"
+          sudo apt-get -o Dir::Cache::archives="$APT_ARCHIVES" update
+          sudo apt-get -o Dir::Cache::archives="$APT_ARCHIVES" install -y ghostscript
       - name: Install Ghostscript (macOS)
         if: runner.os == 'macOS'
+        env:
+          HOMEBREW_CACHE: ${{ runner.temp }}/homebrew-cache
         run: brew install ghostscript
       # Ghostscript 10.08.0 no longer honors /S by itself. The Chocolatey
       # package uses AutoHotkey to advance through the installer's dialogs.
+      - name: Cache Chocolatey downloads (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}\chocolatey-cache
+          key: chocolatey-${{ runner.os }}-ghostscript.app-10.8.0-v1
       - name: Install Ghostscript (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $cache = Join-Path $env:RUNNER_TEMP 'chocolatey-cache'
+          New-Item -ItemType Directory -Force -Path $cache | Out-Null
+          choco config set --name cacheLocation --value $cache
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not configure Chocolatey download cache'
+          }
+
           $maxAttempts = 5
           $installed = $false
 
@@ -138,6 +171,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      # Cache package downloads, then rebuild the tools from their pinned versions.
+      - name: Cache npm downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-node22-release-tools-v1
       - run: node --test .github/scripts/release.test.mjs
       - name: Validate workflows
         run: |
