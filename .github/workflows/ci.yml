@@ -89,22 +89,28 @@ jobs:
             throw "Ghostscript installer checksum mismatch: $actualSha512"
           }
 
+          $bin = Join-Path $env:ProgramFiles "gs\gs$version\bin"
+          $executable = Join-Path $bin 'gswin64c.exe'
           $process = Start-Process -FilePath $installer -ArgumentList '/S' -PassThru
-          try {
-            Wait-Process -Id $process.Id -Timeout 300 -ErrorAction Stop
-          } catch {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            throw 'Ghostscript installer timed out after 5 minutes'
-          }
-          $process.Refresh()
-          if ($process.ExitCode -ne 0) {
-            throw "Ghostscript installer exited with code $($process.ExitCode)"
+
+          # The NSIS launcher can outlive the files it installs. Wait for the
+          # executable itself, which is what the tests need, instead of its PID.
+          $deadline = (Get-Date).AddMinutes(5)
+          while (-not (Test-Path $executable) -and (Get-Date) -lt $deadline) {
+            $process.Refresh()
+            if ($process.HasExited -and $process.ExitCode -ne 0) {
+              throw "Ghostscript installer exited with code $($process.ExitCode)"
+            }
+            Start-Sleep -Seconds 5
           }
 
-          $bin = Join-Path $env:ProgramFiles "gs\gs$version\bin"
-          if (-not (Test-Path (Join-Path $bin 'gswin64c.exe'))) {
-            throw "Ghostscript was not installed in $bin"
+          if (-not (Test-Path $executable)) {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            }
+            throw 'Ghostscript installer did not create gswin64c.exe within 5 minutes'
           }
+
           $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - run: gs --version
         if: runner.os != 'Windows'
