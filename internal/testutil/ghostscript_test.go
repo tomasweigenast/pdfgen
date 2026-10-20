@@ -92,6 +92,10 @@ func TestRasterizePDFStacksPagesCentered(t *testing.T) {
 }
 
 func TestRasterizePDFReportsGhostscriptFailure(t *testing.T) {
+	if _, ok := ghostscriptPath(); !ok {
+		t.Skip("Ghostscript (gs) not found in PATH")
+	}
+
 	msg := runRecorded(t, func(tb testing.TB) {
 		RasterizePDF(tb, []byte("not a pdf"), PixelZoom)
 	})

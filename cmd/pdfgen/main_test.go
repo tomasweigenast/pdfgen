@@ -377,3 +377,16 @@ func TestVersionAndHelp(t *testing.T) {
 		}
 	}
 }
+
+func TestVersionIncludesCommit(t *testing.T) {
+	previous := commit
+	commit = "0123456789abcdef"
+	t.Cleanup(func() { commit = previous })
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"--version"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("version exited %d: %s", code, &stderr)
+	}
+	if !strings.Contains(stdout.String(), "(commit 0123456789abcdef)") {
+		t.Fatalf("missing commit in %q", &stdout)
+	}
+}
