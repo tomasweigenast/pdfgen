@@ -65,17 +65,63 @@ jobs:
       - name: Install Ghostscript (macOS)
         if: runner.os == 'macOS'
         run: brew install ghostscript
+      # Ghostscript 10.08.0 no longer honors /S by itself. The Chocolatey
+      # package uses AutoHotkey to advance through the installer's dialogs.
+      - name: Install Ghostscript (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $maxAttempts = 5
+          $installed = $false
+
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            $output = & choco install ghostscript.app --version=10.8.0 --yes --no-progress --execution-timeout=300 2>&1
+            $exitCode = $LASTEXITCODE
+            $output | ForEach-Object { Write-Host $_ }
+
+            if ($exitCode -eq 0) {
+              $installed = $true
+              break
+            }
+
+            # Only retry the transient Chocolatey feed outage seen in CI.
+            if (($output -join "`n") -notmatch '503\s*\(Service Unavailable\)') {
+              throw "Chocolatey Ghostscript install failed with exit code $exitCode"
+            }
+            if ($attempt -eq $maxAttempts) {
+              throw "Chocolatey feed returned HTTP 503 on all $maxAttempts attempts"
+            }
+
+            $delay = [Math]::Min(5 * [Math]::Pow(2, $attempt - 1), 60)
+            Write-Host "Chocolatey feed returned HTTP 503; retrying in $delay seconds (attempt $($attempt + 1) of $maxAttempts)."
+            Start-Sleep -Seconds $delay
+          }
+
+          if (-not $installed) {
+            throw 'Chocolatey did not install Ghostscript'
+          }
+
+          $bin = Join-Path $env:ProgramFiles 'gs\gs10.08.0\bin'
+          $executable = Join-Path $bin 'gswin64c.exe'
+          if (-not (Test-Path $executable)) {
+            throw "Ghostscript executable was not found at $executable"
+          }
+
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - run: gs --version
         if: runner.os != 'Windows'
+      - name: Verify Ghostscript (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = (& gswin64c --version).Trim()
+          if ($LASTEXITCODE -ne 0 -or $version -ne '10.08.0') {
+            throw "Expected Ghostscript 10.08.0, got '$version'"
+          }
       - run: go test ./...
         if: runner.os != 'Windows'
-      # Ghostscript's Windows installer hangs in the hosted runner's session.
-      # Rendering tests run with Ghostscript on Linux and macOS; the remaining
-      # Go tests still run on Windows without requiring that external tool.
       - run: go test ./...
         if: runner.os == 'Windows'
-        env:
-          CI: ''
 
   # Exercise the release configuration and all six archives without publishing.
   packaging:
